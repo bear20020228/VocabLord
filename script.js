@@ -16,8 +16,8 @@ let gameState = {
     petStats: { pig: { lv: 1, exp: 0 }, fox: { lv: 1, exp: 0 }, cat: { lv: 1, exp: 0 } },
     isPro: false,
     mistakes: {},
-    wordStats: {}, // 🔥 新增：追蹤答對/答錯次數 🔥
-    graduated: {}  // 🔥 新增：已畢業單字庫 🔥
+    wordStats: {}, 
+    graduated: {}  
 };
 
 let activePets = {
@@ -85,28 +85,51 @@ function login() {
     
     const saved = localStorage.getItem('vocabMaster_' + currentUser);
     if (saved) {
-        let oldState = JSON.parse(saved);
-        Object.assign(gameState, oldState);
-        if (oldState.petStats && oldState.petStats.dog) { gameState.petStats.fox = oldState.petStats.dog; delete gameState.petStats.dog; }
-        if (gameState.currentPet === 'dog') gameState.currentPet = 'fox';
-        
-        // 確保舊玩家也有新的畢業系統數據庫
-        gameState.wordStats = oldState.wordStats || {};
-        gameState.graduated = oldState.graduated || {};
-    } else {
+        try {
+            let oldState = JSON.parse(saved);
+            Object.assign(gameState, oldState);
+            if (oldState.petStats && oldState.petStats.dog) { gameState.petStats.fox = oldState.petStats.dog; delete gameState.petStats.dog; }
+            if (gameState.currentPet === 'dog') gameState.currentPet = 'fox';
+            gameState.wordStats = oldState.wordStats || {};
+            gameState.graduated = oldState.graduated || {};
+        } catch(e) { console.error("存檔讀取失敗，載入預設值"); }
+    }
+    
+    // 🔥 終極自我修復機制：如果存檔損毀導致農場沒格子，強制重新生成 🔥
+    if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || !gameState.farmTiles[0] || gameState.farmTiles[0].length !== COLS) {
         gameState.farmTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
     }
-    document.getElementById('in-game-difficulty').value = gameState.difficulty;
+    
+    const diffSelector = document.getElementById('in-game-difficulty');
+    if(diffSelector) diffSelector.value = gameState.difficulty;
+    
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
-    resize(); updateUI(); loadQuestion(); requestAnimationFrame(tick);
+    
+    if (typeof globalVocab === 'undefined') {
+        alert("找不到單字庫 (vocab.js)！請確認檔案是否存在。");
+        return;
+    }
+    
+    resize(); 
+    updateUI(); 
+    loadQuestion(); 
+    requestAnimationFrame(tick);
 }
 
 function saveGame() { if (currentUser) localStorage.setItem('vocabMaster_' + currentUser, JSON.stringify(gameState)); }
 setInterval(saveGame, 5000); 
 
-function showPaywall(msg) { document.getElementById('paywall-msg').innerText = msg; document.getElementById('paywall-modal').classList.remove('hidden'); }
-function closePaywall() { document.getElementById('paywall-modal').classList.add('hidden'); document.getElementById('license-input').value = ""; }
+function showPaywall(msg) { 
+    const msgEl = document.getElementById('paywall-msg');
+    if(msgEl) msgEl.innerText = msg; 
+    document.getElementById('paywall-modal').classList.remove('hidden'); 
+}
+function closePaywall() { 
+    document.getElementById('paywall-modal').classList.add('hidden'); 
+    const inputEl = document.getElementById('license-input');
+    if(inputEl) inputEl.value = ""; 
+}
 
 async function verifyLicenseKey() {
     const inputElem = document.getElementById('license-input');
@@ -144,77 +167,84 @@ function getCoinReward() {
 }
 
 function loadQuestion() {
-    // 🔥 過濾掉已經畢業的單字 🔥
+    if (typeof globalVocab === 'undefined') return;
+
     let pool = globalVocab.filter(v => !gameState.graduated[v.w]);
-    
     if (gameState.difficulty !== "all") {
         let d = parseInt(gameState.difficulty);
         pool = pool.filter(v => v.lv >= d && v.lv <= d + 1);
     }
     
-    // 如果該難度全部都畢業了，防呆處理
     if (pool.length < 4) {
-        document.getElementById('marquee-msg').innerText = `🏆 太神啦！這個難度的單字你已經全部畢業了！現在系統將為你抓取複習題庫。`;
+        let msgEl = document.getElementById('marquee-msg');
+        if(msgEl) msgEl.innerText = `🏆 太神啦！這個難度的單字你已經全部畢業了！系統將為你抓取複習題庫。`;
         pool = globalVocab.filter(v => v.lv >= parseInt(gameState.difficulty) && v.lv <= parseInt(gameState.difficulty) + 1);
-        if (pool.length < 4) pool = globalVocab; // 終極防呆
+        if (pool.length < 4) pool = globalVocab; 
     }
+
+    // 🔥 防呆機制：確保每個單字都有 weight，防止 NaN 當機 🔥
+    pool.forEach(w => { if(typeof w.weight === 'undefined') w.weight = 10; });
 
     let totalWeight = pool.reduce((sum, word) => sum + word.weight, 0);
     let randomNum = Math.random() * totalWeight;
     for (let word of pool) { if (randomNum < word.weight) { currentWord = word; break; } randomNum -= word.weight; }
+    if (!currentWord.w) currentWord = pool[Math.floor(Math.random() * pool.length)]; // 終極防呆
     
-    document.getElementById('word-display').innerText = currentWord.w;
-    document.getElementById('reward-hint').innerText = `答對獎勵：💰 ${getCoinReward()}`;
-    const grid = document.getElementById('options-grid'); grid.innerHTML = '';
+    const wordDisplay = document.getElementById('word-display');
+    if(wordDisplay) wordDisplay.innerText = currentWord.w;
     
-    let opts = [currentWord.c];
-    while(opts.length < 4) {
-        let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
-        if(!opts.includes(r)) opts.push(r);
-    }
+    // 🔥 防呆機制：安全更新獎勵提示 🔥
+    const rewardHint = document.getElementById('reward-hint');
+    if(rewardHint) rewardHint.innerText = `答對獎勵：💰 ${getCoinReward()}`;
     
-    opts.sort(() => Math.random() - 0.5).forEach(o => {
-        const b = document.createElement('button'); b.innerText = o;
-        b.onclick = () => {
-            // 初始化該單字的狀態紀錄
-            if (!gameState.wordStats[currentWord.w]) {
-                gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 };
-            }
+    const grid = document.getElementById('options-grid'); 
+    if(grid) {
+        grid.innerHTML = '';
+        let opts = [currentWord.c];
+        let failSafe = 0;
+        while(opts.length < 4 && failSafe < 100) {
+            let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
+            if(!opts.includes(r) && r !== undefined) opts.push(r);
+            failSafe++;
+        }
+        
+        opts.sort(() => Math.random() - 0.5).forEach(o => {
+            const b = document.createElement('button'); b.innerText = o;
+            b.onclick = () => {
+                if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
 
-            if(o === currentWord.c) {
-                // 答對邏輯
-                gameState.coins += getCoinReward(); 
-                gameState.energy = Math.min(100, gameState.energy + 30);
-                currentWord.weight = Math.max(1, currentWord.weight - 3); 
-                
-                gameState.wordStats[currentWord.w].correct += 1;
-                gameState.wordStats[currentWord.w].consecutive += 1;
+                if(o === currentWord.c) {
+                    gameState.coins += getCoinReward(); 
+                    gameState.energy = Math.min(100, gameState.energy + 30);
+                    currentWord.weight = Math.max(1, currentWord.weight - 3); 
+                    
+                    gameState.wordStats[currentWord.w].correct += 1;
+                    gameState.wordStats[currentWord.w].consecutive += 1;
 
-                // 🔥 自動畢業判定：連續答對 5 次 🔥
-                if (gameState.wordStats[currentWord.w].consecutive >= 5) {
-                    gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
-                    document.getElementById('marquee-msg').innerText = `🎓 恭喜！單字 [${currentWord.w}] 連續答對 5 次，已移至「已畢業單字區」！`;
+                    if (gameState.wordStats[currentWord.w].consecutive >= 5) {
+                        gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
+                        let msgEl2 = document.getElementById('marquee-msg');
+                        if(msgEl2) msgEl2.innerText = `🎓 恭喜！單字 [${currentWord.w}] 連續答對 5 次，已移至「已畢業單字區」！`;
+                    }
+
+                    gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant) { let f = SEED_DATA[t.type].growthFactor || 1; t.progress = Math.min(100, t.progress + (15 * f)); } }));
+                    saveGame(); loadQuestion();
+                } else {
+                    gameState.energy = Math.max(0, gameState.energy - 10); 
+                    currentWord.weight += 10; 
+                    
+                    gameState.wordStats[currentWord.w].wrong += 1;
+                    gameState.wordStats[currentWord.w].consecutive = 0; 
+
+                    if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+                    gameState.mistakes[currentWord.w].count += 1; saveGame(); loadQuestion();
                 }
-
-                gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant) { let f = SEED_DATA[t.type].growthFactor || 1; t.progress = Math.min(100, t.progress + (15 * f)); } }));
-                saveGame(); loadQuestion();
-            } else {
-                // 答錯邏輯
-                gameState.energy = Math.max(0, gameState.energy - 10); 
-                currentWord.weight += 10; 
-                
-                gameState.wordStats[currentWord.w].wrong += 1;
-                gameState.wordStats[currentWord.w].consecutive = 0; // 答錯一次，連續次數直接歸零
-
-                if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
-                gameState.mistakes[currentWord.w].count += 1; saveGame();
-            }
-        };
-        grid.appendChild(b);
-    });
+            };
+            grid.appendChild(b);
+        });
+    }
 }
 
-// 錯題區功能
 function openReviewArea() { document.getElementById('review-screen').classList.remove('hidden'); renderReviewList(); }
 function closeReviewArea() { document.getElementById('review-screen').classList.add('hidden'); }
 function renderReviewList() {
@@ -237,11 +267,11 @@ function masterWord(sw) {
         gameState.coins += 50; gameState.energy = Math.min(100, gameState.energy + 50);
         gameState.inventory['radish'] = (gameState.inventory['radish'] || 0) + 1; 
         saveGame(); updateUI(); renderReviewList();
-        document.getElementById('marquee-msg').innerText = `✨ 恭喜克服 [${wk}]！獲得獎勵！`;
+        let msgEl = document.getElementById('marquee-msg');
+        if(msgEl) msgEl.innerText = `✨ 恭喜克服 [${wk}]！獲得獎勵！`;
     }
 }
 
-// 🔥 已畢業單字區功能 🔥
 function openGraduatedArea() { document.getElementById('graduated-screen').classList.remove('hidden'); renderGraduatedList(); }
 function closeGraduatedArea() { document.getElementById('graduated-screen').classList.add('hidden'); }
 function renderGraduatedList() {
@@ -252,22 +282,20 @@ function renderGraduatedList() {
     list.innerHTML = arr.map(m => `
         <div class="review-item graduated-item">
             <div class="review-word-info">
-                <div class="review-word">${m.w} <span style="font-size: 0.6em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">Lv.${m.lv || '?'}</span> <span class="success-badge">連續答對 5 次</span></div>
+                <div class="review-word">${m.w} <span style="font-size: 0.6em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">Lv.${m.lv || '?'}</span> <span class="success-badge">連對 5 次</span></div>
                 <div class="review-mean">${m.c}</div>
             </div>
-            <button class="revive-btn" onclick="reviveWord('${encodeURIComponent(m.w)}')">🔄 重新學習</button>
+            <button class="revive-btn" onclick="reviveWord('${encodeURIComponent(m.w)}')">🔄 召回</button>
         </div>`).join('');
 }
 function reviveWord(sw) {
     let wk = decodeURIComponent(sw);
     if (gameState.graduated[wk]) {
-        delete gameState.graduated[wk]; // 移出畢業區
-        if (gameState.wordStats[wk]) {
-            gameState.wordStats[wk].consecutive = 0; // 連續次數歸零
-        }
-        saveGame();
-        renderGraduatedList();
-        document.getElementById('marquee-msg').innerText = `🔄 單字 [${wk}] 已重新加入題庫池中！`;
+        delete gameState.graduated[wk]; 
+        if (gameState.wordStats[wk]) { gameState.wordStats[wk].consecutive = 0; }
+        saveGame(); renderGraduatedList();
+        let msgEl = document.getElementById('marquee-msg');
+        if(msgEl) msgEl.innerText = `🔄 單字 [${wk}] 已重新加入題庫池中！`;
     }
 }
 
@@ -301,7 +329,7 @@ function handleInteraction(e) {
     e.preventDefault(); const rect = canvas.getBoundingClientRect();
     const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
     const x = Math.floor((cx - rect.left - offsetX) / TILE_SIZE), y = Math.floor((cy - rect.top - offsetY) / TILE_SIZE);
-    if(x>=0 && x<15 && y>=0 && y<10 && gameState.farmTiles[y][x]) {
+    if(x>=0 && x<15 && y>=0 && y<10 && gameState.farmTiles[y] && gameState.farmTiles[y][x]) {
         let t = gameState.farmTiles[y][x];
         if (t.plant && t.progress >= 100) { gameState.inventory[t.type] = (gameState.inventory[t.type]||0)+1; t.plant = false; t.type = null; t.progress = 0; } 
         else if (!t.plant && gameState.coins >= SEED_DATA[currentSeed].cost) { gameState.coins -= SEED_DATA[currentSeed].cost; t.plant = true; t.type = currentSeed; t.progress = 0; }
@@ -355,7 +383,6 @@ function feedPig(type) {
         let expNeeded = stat.lv * 100;
         while (stat.exp >= expNeeded) {
             stat.lv++; stat.exp -= expNeeded; gameState.energy = 100;
-            updateUI();
         }
         updateUI(); saveGame(); togglePanel('inventory');
     }
@@ -435,7 +462,8 @@ function togglePanel(type) {
     if (!type) { p.classList.add('hidden'); return; }
     p.classList.remove('hidden');
     if (type === 'inventory') {
-        document.getElementById('panel-title').innerText = '背包：' + PET_DATA[gameState.currentPet].title;
+        const pTitle = document.getElementById('panel-title');
+        if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
         let invHTML = `<div style="display:flex; gap:10px; margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
             <button onclick="autoHarvest()" style="flex:1; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;">🚜 一鍵收成</button>
         </div>`;
@@ -456,7 +484,8 @@ function togglePanel(type) {
         }
         document.getElementById('panel-body').innerHTML = hasItem ? invHTML : invHTML + "<p style='text-align:center; color:#777;'>背包空空的</p>";
     } else if (type === 'shop') {
-        document.getElementById('panel-title').innerText = '種子商城';
+        const pTitle = document.getElementById('panel-title');
+        if(pTitle) pTitle.innerText = '種子商城';
         let shopHTML = `<div style="margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
             <button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 一鍵播種</button>
         </div>`;
@@ -467,7 +496,8 @@ function togglePanel(type) {
         }
         document.getElementById('panel-body').innerHTML = shopHTML;
     } else if (type === 'pet') {
-        document.getElementById('panel-title').innerText = '寵物招募';
+        const pTitle = document.getElementById('panel-title');
+        if(pTitle) pTitle.innerText = '寵物招募';
         let petHTML = "";
         for (let key in PET_DATA) {
             let pData = PET_DATA[key];
@@ -486,35 +516,49 @@ function togglePanel(type) {
 }
 
 function updateUI() {
-    document.getElementById('coin-count').innerText = Math.floor(gameState.coins);
-    if (gameState.isPro) { document.getElementById('pro-badge').classList.remove('hidden'); } 
-    else { document.getElementById('pro-badge').classList.add('hidden'); }
+    const coinEl = document.getElementById('coin-count');
+    if(coinEl) coinEl.innerText = Math.floor(gameState.coins);
     
-    let energyFill = document.getElementById('energy-fill');
-    energyFill.style.width = gameState.energy + "%";
-    if (gameState.energy >= 90) { 
-        energyFill.style.background = "#f1c40f"; 
-        energyFill.style.boxShadow = "0 0 10px #f1c40f"; 
-    } else { 
-        energyFill.style.background = "#e67e22"; 
-        energyFill.style.boxShadow = "none"; 
+    const proBadge = document.getElementById('pro-badge');
+    if(proBadge) {
+        if (gameState.isPro) proBadge.classList.remove('hidden'); 
+        else proBadge.classList.add('hidden');
     }
     
-    const energyLabel = document.querySelector('.energy-panel .label');
-    if (energyLabel) { energyLabel.innerHTML = `寵物活力：<span id="energy-num">${Math.floor(gameState.energy)}</span>%`; }
+    let energyFill = document.getElementById('energy-fill');
+    if(energyFill) {
+        energyFill.style.width = gameState.energy + "%";
+        if (gameState.energy >= 90) { 
+            energyFill.style.background = "#f1c40f"; 
+            energyFill.style.boxShadow = "0 0 10px #f1c40f"; 
+        } else { 
+            energyFill.style.background = "#e67e22"; 
+            energyFill.style.boxShadow = "none"; 
+        }
+    }
+    
+    const energyNum = document.getElementById('energy-num');
+    if (energyNum) energyNum.innerText = Math.floor(gameState.energy);
     
     let cp = gameState.currentPet;
     let stat = gameState.petStats[cp];
-    document.getElementById('exp-fill').style.width = (stat.exp / (stat.lv * 100) * 100) + "%";
-    document.getElementById('pig-lv').innerText = stat.lv;
-    document.getElementById('player-name-display').innerText = currentUser + " 的 " + PET_DATA[cp].title;
-    document.getElementById('current-seed-name').innerText = SEED_DATA[currentSeed].name;
+    
+    const expFill = document.getElementById('exp-fill');
+    if(expFill) expFill.style.width = (stat.exp / (stat.lv * 100) * 100) + "%";
+    
+    const pigLv = document.getElementById('pig-lv');
+    if(pigLv) pigLv.innerText = stat.lv;
+    
+    const playerName = document.getElementById('player-name-display');
+    if(playerName) playerName.innerText = currentUser + " 的 " + PET_DATA[cp].title;
     
     let petImgKey = cp + "_Down";
     if (!images[petImgKey] || !images[petImgKey].isLoaded) petImgKey = "pig_Down";
-    if (images[petImgKey] && images[petImgKey].isLoaded) { 
-        document.getElementById('pig-img').src = images[petImgKey].src; 
-        document.getElementById('pig-img').style.display = 'block'; 
+    
+    const pigImg = document.getElementById('pig-img');
+    if (pigImg && images[petImgKey] && images[petImgKey].isLoaded) { 
+        pigImg.src = images[petImgKey].src; 
+        pigImg.style.display = 'block'; 
     }
 }
 

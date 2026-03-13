@@ -1,44 +1,28 @@
+/* ================= 基礎設定 ================= */
 body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #2c3e50; font-family: sans-serif; touch-action: manipulation; }
+.hidden { display: none !important; }
 
+/* ================= 登入畫面 ================= */
 #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .login-box { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8); width: 90%; max-width: 400px; border: 6px solid #f39c12; position: relative; max-height: 90vh; overflow-y: auto; }
-.login-logo { width: 90px; height: 90px; background: #ecf0f1; border-radius: 50%; border: 4px solid #f39c12; padding: 10px; margin-bottom: 10px; object-fit: contain; background-color: #fdf2e9; }
+.login-logo { width: 90px; height: 90px; background: #ecf0f1; border-radius: 50%; border: 4px solid #f39c12; padding: 10px; margin-bottom: 10px; object-fit: contain; }
 .epic-title { color: #2c3e50; margin-bottom: 10px; font-size: 1.6em; margin-top: 0; font-weight: 900; letter-spacing: 1px; }
 .subtitle { font-size: 0.6em; color: #e67e22; background: #fef5e7; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; }
-
-/* 🔥 裝置提示標籤 🔥 */
-.device-hint { background: #e8f8f5; color: #16a085; padding: 8px; border-radius: 8px; font-size: 0.85em; font-weight: bold; margin: 15px 0 5px 0; border: 1px dashed #1abc9c; }
-
+.device-hint { background: #e8f8f5; color: #16a085; padding: 8px; border-radius: 8px; font-size: 0.85em; font-weight: bold; margin: 10px 0; border: 1px dashed #1abc9c; }
 .game-highlights { text-align: left; background: #f8f9fa; padding: 12px 12px 12px 30px; border-radius: 12px; margin: 15px 0; color: #34495e; font-size: 0.85em; line-height: 1.5; border-left: 5px solid #3498db; }
 .game-highlights li { margin-bottom: 6px; }
-.login-box input { width: 90%; padding: 12px; border: 2px solid #bdc3c7; border-radius: 12px; margin-bottom: 15px; font-size: 1.1em; text-align: center; font-weight: bold; background: #f4f6f7; transition: 0.3s; box-sizing: border-box; }
+
+/* 登入框按鈕與輸入框 */
+.login-box input { width: 100%; padding: 15px; border: 2px solid #bdc3c7; border-radius: 12px; margin-bottom: 15px; font-size: 1.1em; text-align: center; font-weight: bold; background: #f4f6f7; transition: 0.3s; box-sizing: border-box; }
 .login-box input:focus { border-color: #3498db; outline: none; background: white; box-shadow: 0 0 10px rgba(52, 152, 219, 0.2); }
-.start-btn { padding: 12px; background: linear-gradient(to bottom, #2ecc71, #27ae60); color: white; border: none; border-radius: 12px; font-size: 1.2em; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #1e8449; }
+.start-btn { padding: 12px; background: linear-gradient(to bottom, #2ecc71, #27ae60); color: white; border: none; border-radius: 12px; font-size: 1.2em; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #1e8449; width: 100%; box-sizing: border-box; }
 .start-btn:active { transform: translateY(6px); box-shadow: none; }
-.info-btn { padding: 12px; background: linear-gradient(to bottom, #3498db, #2980b9); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #1f618d; }
+.info-btn { padding: 12px; background: linear-gradient(to bottom, #3498db, #2980b9); color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #1f618d; width: 100%; box-sizing: border-box; }
 .info-btn:active { transform: translateY(6px); box-shadow: none; }
 .author-tag { margin-top: 15px; font-size: 0.8em; color: #7f8c8d; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
 
-#tutorial-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.tutorial-box { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; max-height: 85vh; overflow-y: auto; position: relative; border: 5px solid #3498db; box-shadow: 0 15px 40px rgba(0,0,0,0.5); text-align: left; }
-.tutorial-box h3 { text-align: center; color: #2980b9; margin-top: 0; font-size: 1.4em; border-bottom: 2px dashed #eee; padding-bottom: 10px; }
-.tutorial-text p { margin-bottom: 12px; font-size: 0.95em; color: #2c3e50; line-height: 1.6; }
-.tutorial-text b { color: #d35400; }
-
-#paywall-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.paywall-box { background: white; padding: 20px 25px; border-radius: 20px; width: 85%; max-width: 350px; max-height: 88vh; overflow-y: auto; text-align: center; position: relative; border: 5px solid #f39c12; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
-.close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #aaa; transition: 0.2s; z-index: 10; }
-.close-btn:hover { color: #e74c3c; }
-.pro-features { text-align: left; background: #fef9e7; padding: 12px 12px 12px 30px; border-radius: 12px; margin: 12px 0; color: #d35400; font-weight: bold; font-size: 0.85em; border-left: 4px solid #f39c12; }
-.pro-features li { margin-bottom: 6px; }
-.line-contact { background: #e8f8f5; border: 2px solid #a3e4d7; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
-#license-input { width: 90%; padding: 12px; border: 2px solid #ccc; border-radius: 8px; margin-bottom: 12px; font-size: 1.1em; text-align: center; font-weight: bold; background: #f9f9f9; box-sizing: border-box; }
-#license-input:focus { border-color: #f39c12; outline: none; background: white; }
-.unlock-btn { width: 100%; padding: 12px; background: linear-gradient(to bottom, #f1c40f, #f39c12); color: white; border: none; border-radius: 10px; font-size: 1.2em; font-weight: bold; cursor: pointer; box-shadow: 0 5px 0 #d35400; transition: 0.1s; }
-.unlock-btn:active { transform: translateY(5px); box-shadow: none; }
-
+/* ================= 遊戲主體架構 ================= */
 #game-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95vw; max-width: 1000px; height: 95vh; height: 95dvh; background: #fff; display: flex; flex-direction: column; border: 6px solid #5d4037; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); overflow: hidden; }
-.hidden { display: none !important; }
 #marquee-container { height: 40px; background: #34495e; color: #f1c40f; display: flex; align-items: center; padding: 0 10px; border-bottom: 3px solid #2c3e50; flex-shrink: 0; }
 #marquee-pig { height: 24px; margin-right: 10px; object-fit: contain; }
 .marquee-scroll { flex: 1; overflow: hidden; white-space: nowrap; }
@@ -46,54 +30,87 @@ body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 @keyframes scrollText { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 
 #game-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ================= 左側邊欄 ================= */
 #sidebar { width: 320px; min-width: 320px; background: #fff; border-right: 5px solid #5d4037; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; z-index: 10; overflow-y: auto; }
+
+/* 🔥 加大的寵物頭像區 🔥 */
 .user-header { display: flex; align-items: center; margin-bottom: 15px; }
-.pig-avatar-container { position: relative; width: 70px; height: 70px; background: #f0f0f0; border: 3px solid #5d4037; border-radius: 15px; cursor: pointer; flex-shrink: 0; overflow: hidden; }
-#pig-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-#feed-hint { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(243, 156, 18, 0.9); color: white; font-size: 10px; text-align: center; font-weight: bold; padding: 2px 0; }
-.user-info { flex: 1; padding-left: 10px; }
-.lv-badge { font-weight: bold; font-size: 0.9em; color: #5d4037; }
+.pig-avatar-container { position: relative; width: 85px; height: 85px; background: #fdf2e9; border: 4px solid #f39c12; border-radius: 20px; cursor: pointer; flex-shrink: 0; overflow: visible; box-shadow: 0 4px 0 #d35400; }
+#pig-img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 15px; }
+.switch-icon-hint { position: absolute; bottom: -5px; right: -5px; background: #2980b9; color: white; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; animation: bounceHint 2s infinite; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+@keyframes bounceHint { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+.user-info { flex: 1; padding-left: 15px; display: flex; flex-direction: column; justify-content: center; }
+.lv-badge { font-weight: bold; font-size: 1em; color: #5d4037; margin-bottom: 5px; }
 #pro-badge { background: #f1c40f; color: #d35400; padding: 2px 6px; border-radius: 5px; font-size: 0.8em; font-weight: 900; margin-left: 5px; border: 1px solid #e67e22; vertical-align: middle; }
-.exp-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 4px 0; }
+.exp-bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin: 5px 0; }
 #exp-fill { height: 100%; width: 0%; background: #3498db; transition: 0.5s; }
 .money { font-weight: bold; font-size: 1.1em; color: #f39c12; }
 
-#quiz-panel { flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: center; }
-.tag { font-size: 0.85em; color: #7f8c8d; font-weight: bold; }
-.tag select { background: transparent; border: none; color: #2980b9; font-weight: bold; font-size: 1em; }
-#word-display { color: #2980b9; font-size: 2em; margin: 10px 0; word-break: break-word; }
-#options-grid { display: grid; gap: 8px; }
-#options-grid button { padding: 10px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; touch-action: manipulation; }
-#options-grid button:active { background: #e0e0e0; }
+/* 測驗區 */
+#quiz-panel { flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: center; margin: 15px 0; }
+.tag { font-size: 0.9em; color: #7f8c8d; font-weight: bold; }
+.tag select { background: transparent; border: none; color: #2980b9; font-weight: bold; font-size: 1em; cursor: pointer; outline: none; }
+#word-display { color: #2980b9; font-size: 2.2em; margin: 15px 0; word-break: break-word; }
+#options-grid { display: grid; gap: 10px; width: 100%; }
+#options-grid button { padding: 12px; border: 2px solid #bdc3c7; border-radius: 12px; background: white; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; touch-action: manipulation; color: #2c3e50; }
+#options-grid button:active { background: #e0e0e0; transform: scale(0.98); }
 
-.energy-panel { margin-top: 10px; }
+.energy-panel { margin-top: auto; }
 .label { font-weight: bold; font-size: 0.9em; color: #333; }
 .bar-bg { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 5px 0; }
 #energy-fill { width: 100%; height: 100%; background: #e67e22; transition: 0.3s; }
-.warning-text { font-size: 0.85em; color: #d35400; font-weight: bold; text-align: center; background: #fdebd0; padding: 5px; border-radius: 5px; margin: 5px 0 0 0; }
 
+/* ================= 右側農場區 ================= */
 #farm-viewport { flex: 1; position: relative; background: #2d5a27; overflow: hidden; }
 #gameCanvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; }
-#ui-overlays { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
-.overlay-btn { background: rgba(0,0,0,0.8); color: white; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-size: 0.9em; font-weight: bold; text-align: center; transition: 0.1s; }
+
+/* 🔥 專業版升級金牌按鈕 🔥 */
+#pro-upgrade-btn { position: absolute; top: 15px; left: 15px; background: linear-gradient(135deg, #f1c40f, #f39c12); color: #fff; padding: 10px 15px; border-radius: 50px; font-weight: bold; font-size: 0.9em; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4); z-index: 100; cursor: pointer; border: 2px solid #fff; animation: pulsePro 2s infinite; }
+@keyframes pulsePro { 0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0); } 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); } }
+
+/* 選單按鈕區 */
+#ui-overlays { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+.overlay-btn { background: rgba(0,0,0,0.8); color: white; padding: 12px 20px; border-radius: 12px; cursor: pointer; font-size: 0.95em; font-weight: bold; text-align: center; transition: 0.1s; }
 .overlay-btn:active { transform: scale(0.95); }
 
-#floating-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 360px; max-height: 80vh; background: white; border: 4px solid #5d4037; border-radius: 15px; padding: 15px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow-y: auto; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 10px; font-weight: bold; font-size: 1.1em; color: #333; }
-.panel-header button { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #e74c3c; font-weight: bold; padding: 5px; }
-.shop-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
-.shop-item button { padding: 6px 12px; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.9em; }
+/* ================= 彈窗與功能面板 ================= */
+#floating-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 380px; max-height: 80vh; background: white; border: 4px solid #5d4037; border-radius: 20px; padding: 20px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow-y: auto; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; font-size: 1.2em; color: #333; }
+.panel-header button { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #e74c3c; font-weight: bold; padding: 5px; line-height: 1; }
+.shop-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.shop-item button { padding: 8px 15px; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.95em; }
 .shop-item button:disabled { background: #ccc !important; cursor: not-allowed; }
+
+#tutorial-modal, #paywall-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.tutorial-box, .paywall-box { background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 400px; max-height: 85vh; overflow-y: auto; position: relative; text-align: left; }
+.tutorial-box { border: 5px solid #3498db; }
+.paywall-box { border: 5px solid #f39c12; text-align: center; }
+.tutorial-box h3 { text-align: center; color: #2980b9; margin-top: 0; font-size: 1.4em; border-bottom: 2px dashed #eee; padding-bottom: 10px; }
+.tutorial-text p { margin-bottom: 12px; font-size: 0.95em; color: #2c3e50; line-height: 1.6; }
+.tutorial-text b { color: #d35400; }
+.close-btn { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #aaa; transition: 0.2s; line-height: 1; }
+.close-btn:hover { color: #e74c3c; }
+
+.price-tag { font-size: 1.4em; color: #e74c3c; font-weight: 900; margin: 15px 0; background: #fdf2f2; padding: 12px; border-radius: 12px; }
+.old-price { font-size: 0.7em; text-decoration: line-through; color: #95a5a6; margin-left: 10px; font-weight: normal; }
+.pro-features { text-align: left; background: #fef9e7; padding: 15px 15px 15px 35px; border-radius: 12px; margin: 15px 0; color: #d35400; font-weight: bold; font-size: 0.9em; border-left: 5px solid #f39c12; line-height: 1.5;}
+.pro-features li { margin-bottom: 8px; }
+.line-contact { background: #e8f8f5; border: 2px solid #a3e4d7; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+#license-input { width: 100%; padding: 15px; border: 2px solid #ccc; border-radius: 10px; margin-bottom: 15px; font-size: 1.1em; text-align: center; font-weight: bold; background: #f9f9f9; box-sizing: border-box; }
+#license-input:focus { border-color: #f39c12; outline: none; background: white; }
+.unlock-btn { width: 100%; padding: 15px; background: linear-gradient(to bottom, #f1c40f, #f39c12); color: white; border: none; border-radius: 12px; font-size: 1.2em; font-weight: bold; cursor: pointer; box-shadow: 0 5px 0 #d35400; transition: 0.1s; }
+.unlock-btn:active { transform: translateY(5px); box-shadow: none; }
 
 #review-screen, #graduated-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fdf2e9; z-index: 1000; display: flex; flex-direction: column; overflow: hidden; }
 .review-header { background: #c0392b; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 .review-header h2 { margin: 0; font-size: 1.4em; }
 .close-review-btn { background: rgba(0,0,0,0.2); border: none; color: white; font-weight: bold; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
 .close-review-btn:active { background: rgba(0,0,0,0.4); }
-.review-info { background: #fdebd0; color: #d35400; text-align: center; padding: 10px; font-size: 0.9em; font-weight: bold; border-bottom: 2px solid #f39c12; }
-#review-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+.review-info { background: #fdebd0; color: #d35400; text-align: center; padding: 12px; font-size: 0.95em; font-weight: bold; border-bottom: 2px solid #f39c12; }
+#review-list, #graduated-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
 .review-item { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #e74c3c; }
-
 .graduated-item { border-left: 6px solid #8e44ad; }
 
 .review-word-info { flex: 1; padding-right: 10px; }
@@ -107,16 +124,19 @@ body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 .revive-btn:active { transform: translateY(4px); box-shadow: none; }
 .empty-review { text-align: center; color: #95a5a6; font-size: 1.2em; font-weight: bold; margin-top: 50px; line-height: 1.6; }
 
+/* ================= 手機版優化 ================= */
 @media (max-width: 1024px), (orientation: portrait) {
     #game-container { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; border: none; border-radius: 0; }
     #game-body { flex-direction: column; }
     #sidebar { width: 100%; min-width: 100%; height: auto; flex: none; border-right: none; border-bottom: 4px solid #5d4037; padding: 10px 15px; }
     #farm-viewport { width: 100%; flex: 1; }
     #options-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    #options-grid button { padding: 12px 5px; font-size: 0.95em; }
-    #word-display { font-size: 1.5em; margin: 5px 0; }
+    #options-grid button { padding: 12px 5px; font-size: 1em; }
+    #word-display { font-size: 1.8em; margin: 8px 0; }
     .user-header { margin-bottom: 5px; }
-    #ui-overlays { flex-direction: row; top: auto; bottom: 15px; left: 50%; transform: translateX(-50%); width: 98%; justify-content: center; gap: 4px; }
-    .overlay-btn { padding: 12px 2px; font-size: 0.8em; flex: 1; white-space: nowrap; border: 2px solid rgba(255, 255, 255, 0.2); }
+    
+    #ui-overlays { flex-direction: row; top: auto; bottom: 15px; left: 50%; transform: translateX(-50%); width: 96%; justify-content: center; gap: 6px; }
+    .overlay-btn { padding: 12px 0; font-size: 0.9em; flex: 1; white-space: nowrap; border: 2px solid rgba(255, 255, 255, 0.2); }
     .epic-title { font-size: 1.4em; }
+    .pig-avatar-container { width: 70px; height: 70px; }
 }
