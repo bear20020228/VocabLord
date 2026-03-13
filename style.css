@@ -38,7 +38,7 @@ body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 #quiz-panel { flex: 1; text-align: center; display: flex; flex-direction: column; justify-content: center; }
 .tag { font-size: 0.85em; color: #7f8c8d; font-weight: bold; }
 .tag select { background: transparent; border: none; color: #2980b9; font-weight: bold; font-size: 1em; }
-#word-display { color: #2980b9; font-size: 2em; margin: 10px 0; }
+#word-display { color: #2980b9; font-size: 2em; margin: 10px 0; word-break: break-word; }
 #options-grid { display: grid; gap: 8px; }
 #options-grid button { padding: 10px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; touch-action: manipulation; }
 #options-grid button:active { background: #e0e0e0; }
@@ -62,7 +62,6 @@ body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 .shop-item button { padding: 6px 12px; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 0.9em; }
 .shop-item button:disabled { background: #ccc !important; cursor: not-allowed; }
 
-/* 🔥 付費牆專屬樣式 (LINE 版) 🔥 */
 #paywall-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; }
 .paywall-box { background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center; position: relative; border: 5px solid #f39c12; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
 .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #aaa; transition: 0.2s; }
@@ -91,12 +90,20 @@ body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 .master-btn:active { transform: translateY(4px); box-shadow: none; }
 .empty-review { text-align: center; color: #95a5a6; font-size: 1.2em; font-weight: bold; margin-top: 50px; line-height: 1.6; }
 
-@media (max-width: 768px) {
+/* 🔥 終極手機跑版救援：強力覆蓋 1024px 以下的所有行動裝置 (含橫向) 🔥 */
+@media (max-width: 1024px), (orientation: portrait) {
     #game-container { width: 100vw; height: 100vh; max-width: none; max-height: none; border: none; border-radius: 0; }
-    #game-body { flex-direction: column; }
-    #sidebar { width: 100%; min-width: 100%; height: 55%; border-right: none; border-bottom: 4px solid #5d4037; }
+    #game-body { flex-direction: column; } /* 強制上下排列 */
+    #sidebar { width: 100%; min-width: 100%; height: 55%; border-right: none; border-bottom: 4px solid #5d4037; padding: 10px; }
     #farm-viewport { height: 45%; width: 100%; }
-    #word-display { font-size: 1.6em; }
+    
+    /* 微調手機版字體與間距，防止撐爆畫面 */
+    #word-display { font-size: 1.6em; margin: 5px 0; }
+    #options-grid { gap: 4px; }
+    #options-grid button { padding: 8px; font-size: 0.9em; }
+    .user-header { margin-bottom: 5px; }
+    
+    /* 將按鈕移到適合手機的位置 */
     #ui-overlays { flex-direction: row; left: 10px; right: auto; top: 10px; }
     .epic-title { font-size: 1.5em; }
 }
