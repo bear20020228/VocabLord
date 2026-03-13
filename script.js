@@ -60,40 +60,42 @@ function loadAssets() {
 
 function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width; 
-    canvas.height = rect.height;
-    let tileW = canvas.width / COLS;
-    let tileH = canvas.height / ROWS;
+    canvas.width = rect.width; canvas.height = rect.height;
+    let tileW = canvas.width / COLS; let tileH = canvas.height / ROWS;
     TILE_SIZE = Math.floor(Math.min(tileW, tileH));
     offsetX = Math.floor((canvas.width - (TILE_SIZE * COLS)) / 2);
     offsetY = Math.floor((canvas.height - (TILE_SIZE * ROWS)) / 2);
 }
 window.addEventListener('resize', resize);
 
+// 🔥 頁面載入時，自動填入上次登入的帳號 🔥
+document.addEventListener("DOMContentLoaded", () => {
+    const lastUser = localStorage.getItem('last_user_vocablord');
+    if (lastUser) {
+        document.getElementById('username-input').value = lastUser;
+    }
+});
+
+// 🔥 新增：開關教學 Modal 🔥
+function showTutorial() { document.getElementById('tutorial-modal').classList.remove('hidden'); }
+function closeTutorial() { document.getElementById('tutorial-modal').classList.add('hidden'); }
+
 function login() {
     currentUser = document.getElementById('username-input').value.trim();
     if (!currentUser) return alert("請輸入名字");
-
+    
+    // 🔥 記錄登入帳號 🔥
+    localStorage.setItem('last_user_vocablord', currentUser);
+    
     const saved = localStorage.getItem('vocabMaster_' + currentUser);
     if (saved) {
         let oldState = JSON.parse(saved);
-        gameState.coins = oldState.coins || 100; gameState.energy = oldState.energy || 100;
-        gameState.inventory = oldState.inventory || { carrot: 0, tomato: 0, radish: 0 };
-        gameState.farmTiles = oldState.farmTiles;
-        gameState.difficulty = oldState.difficulty || "1";
-        gameState.petsOwned = oldState.petsOwned || ["pig"];
-        if (oldState.petStats) {
-            gameState.petStats = oldState.petStats;
-            if (gameState.petStats.dog) { gameState.petStats.fox = gameState.petStats.dog; delete gameState.petStats.dog; }
-        }
-        gameState.currentPet = oldState.currentPet || "pig";
+        Object.assign(gameState, oldState);
+        if (oldState.petStats && oldState.petStats.dog) { gameState.petStats.fox = oldState.petStats.dog; delete gameState.petStats.dog; }
         if (gameState.currentPet === 'dog') gameState.currentPet = 'fox';
-        gameState.isPro = oldState.isPro || false;
-        gameState.mistakes = oldState.mistakes || {};
     } else {
         gameState.farmTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
     }
-
     document.getElementById('in-game-difficulty').value = gameState.difficulty;
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
@@ -103,61 +105,28 @@ function login() {
 function saveGame() { if (currentUser) localStorage.setItem('vocabMaster_' + currentUser, JSON.stringify(gameState)); }
 setInterval(saveGame, 5000); 
 
-function showPaywall(msg) {
-    document.getElementById('paywall-msg').innerText = msg;
-    document.getElementById('paywall-modal').classList.remove('hidden');
-}
-
-function closePaywall() {
-    document.getElementById('paywall-modal').classList.add('hidden');
-    document.getElementById('license-input').value = "";
-}
+function showPaywall(msg) { document.getElementById('paywall-msg').innerText = msg; document.getElementById('paywall-modal').classList.remove('hidden'); }
+function closePaywall() { document.getElementById('paywall-modal').classList.add('hidden'); document.getElementById('license-input').value = ""; }
 
 async function verifyLicenseKey() {
     const inputElem = document.getElementById('license-input');
     const btnElem = document.querySelector('.unlock-btn');
-    const rawInput = inputElem.value;
-    const key = rawInput.replace(/\s+/g, '').toUpperCase();
-
-    if (!key) { alert("請輸入金鑰！"); return; }
-
-    // 🔥 已更新為你的正式網址 🔥
+    const key = inputElem.value.replace(/\s+/g, '').toUpperCase();
+    if (!key) return alert("請輸入金鑰！");
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJm3AvAS-vwd841tmJVwPMt7VT9ufh_maHenZGTj_XVQ10gRNskiA6k2ptJiekNgp_/exec"; 
-
-    btnElem.innerText = "⏳ 雲端連線驗證中...";
-    btnElem.disabled = true;
-
+    btnElem.innerText = "⏳ 雲端連線驗證中..."; btnElem.disabled = true;
     try {
         const response = await fetch(`${SCRIPT_URL}?key=${key}&user=${currentUser}`);
         const data = await response.json();
-
-        if (data.success) {
-            gameState.isPro = true;
-            saveGame(); updateUI(); closePaywall();
-            alert("🎉 恭喜！金鑰驗證成功！您已永久解鎖 VocabMaster 專業版！");
-        } else {
-            alert(data.message);
-        }
-    } catch (error) {
-        alert("連線驗證失敗，請檢查網路連線或稍後再試。");
-    } finally {
-        btnElem.innerText = "驗證並解鎖";
-        btnElem.disabled = false;
-    }
+        if (data.success) { gameState.isPro = true; saveGame(); updateUI(); closePaywall(); alert("🎉 金鑰驗證成功！您已解鎖專業版！"); } 
+        else { alert(data.message); }
+    } catch (error) { alert("連線驗證失敗。"); } finally { btnElem.innerText = "驗證並解鎖"; btnElem.disabled = false; }
 }
 
 function changeDifficulty() { 
     const selector = document.getElementById('in-game-difficulty');
-    const selectedValue = selector.value;
-    
-    if (selectedValue !== "1" && !gameState.isPro) {
-        showPaywall("Level 3~6 的中高級單字庫為「專業版專屬」喔！");
-        selector.value = gameState.difficulty; 
-        return;
-    }
-    
-    gameState.difficulty = selectedValue; 
-    saveGame(); loadQuestion(); 
+    if (selector.value !== "1" && !gameState.isPro) { showPaywall("中高級單字庫為專業版專屬！"); selector.value = gameState.difficulty; return; }
+    gameState.difficulty = selector.value; saveGame(); loadQuestion(); 
 }
 
 function getPetSize(lv) { return Math.min(TILE_SIZE * 1.5, TILE_SIZE * 0.8 + (lv - 1) * (TILE_SIZE * 0.05)); }
@@ -181,200 +150,113 @@ function loadQuestion() {
         pool = globalVocab.filter(v => v.lv >= d && v.lv <= d + 1);
         if (pool.length < 4) pool = globalVocab;
     }
-    
     let totalWeight = pool.reduce((sum, word) => sum + word.weight, 0);
     let randomNum = Math.random() * totalWeight;
     for (let word of pool) { if (randomNum < word.weight) { currentWord = word; break; } randomNum -= word.weight; }
-
     document.getElementById('word-display').innerText = currentWord.w;
-    
-    let hintElem = document.getElementById('reward-hint');
-    if(hintElem) hintElem.innerText = `答對獎勵：💰 ${getCoinReward()}`;
-    
+    document.getElementById('reward-hint').innerText = `答對獎勵：💰 ${getCoinReward()}`;
     const grid = document.getElementById('options-grid'); grid.innerHTML = '';
     let opts = [currentWord.c];
-    let safetyCounter = 0; 
-    while(opts.length < 4 && safetyCounter < 100) {
+    while(opts.length < 4) {
         let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
         if(!opts.includes(r)) opts.push(r);
-        safetyCounter++;
     }
-    
     opts.sort(() => Math.random() - 0.5).forEach(o => {
         const b = document.createElement('button'); b.innerText = o;
         b.onclick = () => {
             if(o === currentWord.c) {
-                gameState.coins += getCoinReward(); 
-                gameState.energy = Math.min(100, gameState.energy + 30);
+                gameState.coins += getCoinReward(); gameState.energy = Math.min(100, gameState.energy + 30);
                 currentWord.weight = Math.max(1, currentWord.weight - 3); 
-                gameState.farmTiles.forEach(r => r.forEach(t => { 
-                    if(t.plant) {
-                        let factor = SEED_DATA[t.type].growthFactor || 1;
-                        t.progress = Math.min(100, t.progress + (15 * factor));
-                    }
-                }));
+                gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant) { let f = SEED_DATA[t.type].growthFactor || 1; t.progress = Math.min(100, t.progress + (15 * f)); } }));
                 saveGame(); loadQuestion();
             } else {
-                gameState.energy = Math.max(0, gameState.energy - 10);
-                currentWord.weight += 10; 
-                
-                // 🔥 記錄錯題時加入 lv (等級) 🔥
-                if (!gameState.mistakes[currentWord.w]) {
-                    gameState.mistakes[currentWord.w] = { 
-                        w: currentWord.w, 
-                        c: currentWord.c, 
-                        lv: currentWord.lv, // 保存單字等級
-                        count: 0 
-                    };
-                }
-                gameState.mistakes[currentWord.w].count += 1;
-                saveGame();
+                gameState.energy = Math.max(0, gameState.energy - 10); currentWord.weight += 10; 
+                if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+                gameState.mistakes[currentWord.w].count += 1; saveGame();
             }
         };
         grid.appendChild(b);
     });
 }
 
-function openReviewArea() {
-    document.getElementById('review-screen').classList.remove('hidden');
-    renderReviewList();
-}
-
-function closeReviewArea() {
-    document.getElementById('review-screen').classList.add('hidden');
-}
-
+function openReviewArea() { document.getElementById('review-screen').classList.remove('hidden'); renderReviewList(); }
+function closeReviewArea() { document.getElementById('review-screen').classList.add('hidden'); }
 function renderReviewList() {
-    const listContainer = document.getElementById('review-list');
-    let mistakesArr = Object.values(gameState.mistakes);
-
-    if (mistakesArr.length === 0) {
-        listContainer.innerHTML = "<div class='empty-review'>🎉 太棒了！<br>你的錯題本是空的！<br>繼續保持，去農場答題吧！</div>";
-        return;
-    }
-
-    mistakesArr.sort((a, b) => b.count - a.count);
-
-    let html = "";
-    mistakesArr.forEach(m => {
-        let safeWord = encodeURIComponent(m.w);
-        html += `
+    const list = document.getElementById('review-list');
+    let arr = Object.values(gameState.mistakes).sort((a, b) => b.count - a.count);
+    if (arr.length === 0) { list.innerHTML = "<div class='empty-review'>🎉 錯題本是空的！</div>"; return; }
+    list.innerHTML = arr.map(m => `
         <div class="review-item">
             <div class="review-word-info">
-                <div class="review-word">
-                    ${m.w} 
-                    <span style="font-size: 0.6em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle;">Lv.${m.lv || '?'}</span>
-                    <span class="error-count-badge">錯了 ${m.count} 次</span>
-                </div>
+                <div class="review-word">${m.w} <span style="font-size: 0.6em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">Lv.${m.lv || '?'}</span> <span class="error-count-badge">錯了 ${m.count} 次</span></div>
                 <div class="review-mean">${m.c}</div>
             </div>
-            <button class="master-btn" onclick="masterWord('${safeWord}')">✅ 複習熟悉</button>
-        </div>
-        `;
-    });
-    listContainer.innerHTML = html;
+            <button class="master-btn" onclick="masterWord('${encodeURIComponent(m.w)}')">✅ 複習熟悉</button>
+        </div>`).join('');
 }
 
-function masterWord(safeWord) {
-    let wordKey = decodeURIComponent(safeWord);
-    if (gameState.mistakes[wordKey]) {
-        delete gameState.mistakes[wordKey];
-        gameState.coins += 50;
-        gameState.energy = Math.min(100, gameState.energy + 50);
+function masterWord(sw) {
+    let wk = decodeURIComponent(sw);
+    if (gameState.mistakes[wk]) {
+        delete gameState.mistakes[wk];
+        gameState.coins += 50; gameState.energy = Math.min(100, gameState.energy + 50);
         gameState.inventory['radish'] = (gameState.inventory['radish'] || 0) + 1; 
-        saveGame();
-        updateUI();
-        renderReviewList();
-        document.getElementById('marquee-msg').innerText = `✨ 恭喜克服單字 [${wordKey}]！獲得 💰50金幣 + ⚡50活力 + 🧅甜菜種子x1！`;
+        saveGame(); updateUI(); renderReviewList();
+        document.getElementById('marquee-msg').innerText = `✨ 恭喜克服 [${wk}]！獲得獎勵！`;
     }
 }
 
 function moveAllPets() {
-    gameState.petsOwned.forEach(petId => {
-        let p = activePets[petId];
-        let stat = gameState.petStats[petId];
-        let currentSpeed = getPetSpeed(stat.lv);
-        if (gameState.energy >= 90) currentSpeed *= 3.0; 
+    gameState.petsOwned.forEach(pid => {
+        let p = activePets[pid]; let stat = gameState.petStats[pid]; let speed = getPetSpeed(stat.lv);
+        if (gameState.energy >= 90) speed *= 3.0; 
         if (gameState.energy <= 0) { p.dir = 'Dead'; return; }
-        if (p.state === 'idle') {
-            p.timer--;
-            if (p.timer <= 0) {
-                p.targetX = Math.random() * (COLS - 1);
-                p.targetY = Math.random() * (ROWS - 1);
-                p.state = 'walk';
-            }
-        } else {
-            let dx = p.targetX - p.x, dy = p.targetY - p.y;
-            let dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > currentSpeed) {
-                p.x += (dx/dist) * currentSpeed; p.y += (dy/dist) * currentSpeed;
-                if (Math.abs(dx) > Math.abs(dy)) p.dir = dx > 0 ? 'Right' : 'Left'; else p.dir = dy > 0 ? 'Down' : 'Up';
-                checkPetCollision(p);
-            } else { p.state = 'idle'; p.timer = Math.random() * 80 + 30; }
+        if (p.state === 'idle') { p.timer--; if (p.timer <= 0) { p.targetX = Math.random()*14; p.targetY = Math.random()*9; p.state = 'walk'; } } 
+        else {
+            let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > speed) { p.x += (dx/dist)*speed; p.y += (dy/dist)*speed; p.dir = Math.abs(dx)>Math.abs(dy)?(dx>0?'Right':'Left'):(dy>0?'Down':'Up'); checkPetCollision(p); } 
+            else { p.state = 'idle'; p.timer = Math.random()*80+30; }
         }
     });
 }
 
 function checkPetCollision(p) {
-    let tileX = Math.floor(p.x + 0.5);
-    let tileY = Math.floor(p.y + 0.5);
-    if(gameState.farmTiles[tileY] && gameState.farmTiles[tileY][tileX]) {
-        let t = gameState.farmTiles[tileY][tileX];
+    let tx = Math.floor(p.x + 0.5), ty = Math.floor(p.y + 0.5);
+    if(gameState.farmTiles[ty] && gameState.farmTiles[ty][tx]) {
+        let t = gameState.farmTiles[ty][tx];
         if (t.plant) {
-            let boost = (gameState.energy >= 90) ? 1.5 : 0.5;
-            if (t.progress < 100) { t.progress += boost; } 
-            else if (t.progress >= 100) { 
-                gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1; 
-                t.plant = false; t.type = null; t.progress = 0;
-            }
+            let b = (gameState.energy >= 90)?1.5:0.5;
+            if (t.progress < 100) { t.progress += b; } 
+            else { gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1; t.plant = false; t.type = null; t.progress = 0; }
         }
     }
 }
 
 function handleInteraction(e) {
-    e.preventDefault(); 
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const x = Math.floor((clientX - rect.left - offsetX) / TILE_SIZE);
-    const y = Math.floor((clientY - rect.top - offsetY) / TILE_SIZE);
-    if(x >= 0 && x < COLS && y >= 0 && y < ROWS && gameState.farmTiles[y] && gameState.farmTiles[y][x]) {
+    e.preventDefault(); const rect = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = Math.floor((cx - rect.left - offsetX) / TILE_SIZE), y = Math.floor((cy - rect.top - offsetY) / TILE_SIZE);
+    if(x>=0 && x<15 && y>=0 && y<10 && gameState.farmTiles[y][x]) {
         let t = gameState.farmTiles[y][x];
-        if (t.plant && t.progress >= 100) {
-            gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1; t.plant = false; t.type = null; t.progress = 0;
-        } else if (!t.plant && gameState.coins >= SEED_DATA[currentSeed].cost) {
-            gameState.coins -= SEED_DATA[currentSeed].cost; t.plant = true; t.type = currentSeed; t.progress = 0;
-        }
+        if (t.plant && t.progress >= 100) { gameState.inventory[t.type] = (gameState.inventory[t.type]||0)+1; t.plant = false; t.type = null; t.progress = 0; } 
+        else if (!t.plant && gameState.coins >= SEED_DATA[currentSeed].cost) { gameState.coins -= SEED_DATA[currentSeed].cost; t.plant = true; t.type = currentSeed; t.progress = 0; }
         updateUI(); saveGame();
     }
 }
-canvas.addEventListener('mousedown', handleInteraction);
-canvas.addEventListener('touchstart', handleInteraction, {passive: false});
+canvas.addEventListener('mousedown', handleInteraction); canvas.addEventListener('touchstart', handleInteraction, {passive: false});
 
-function tick() {
-    gameState.energy = Math.max(0, gameState.energy - 0.04);
-    moveAllPets(); draw(); updateUI(); requestAnimationFrame(tick);
-}
+function tick() { gameState.energy = Math.max(0, gameState.energy - 0.04); moveAllPets(); draw(); updateUI(); requestAnimationFrame(tick); }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     gameState.farmTiles.forEach((row, y) => row.forEach((tile, x) => {
-        let px = offsetX + x * TILE_SIZE;
-        let py = offsetY + y * TILE_SIZE;
+        let px = offsetX + x * TILE_SIZE, py = offsetY + y * TILE_SIZE;
         if(images.grass && images.grass.isLoaded) ctx.drawImage(images.grass, px, py, TILE_SIZE, TILE_SIZE);
         if(images.soil && images.soil.isLoaded) ctx.drawImage(images.soil, px, py, TILE_SIZE, TILE_SIZE);
         if(tile.plant) {
-            let imgKey = tile.progress >= 100 ? tile.type+'_02' : tile.type+'_01';
-            if(images[imgKey] && images[imgKey].isLoaded) {
-                ctx.drawImage(images[imgKey], px, py, TILE_SIZE, TILE_SIZE);
-            } else {
-                ctx.font = (TILE_SIZE/2) + "px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                if(tile.progress >= 100) {
-                    let e = tile.type === 'tomato' ? "🍅" : (tile.type === 'radish' ? "🧅" : "🥕");
-                    ctx.fillText(e, px + TILE_SIZE/2, py + TILE_SIZE/2);
-                }
-            }
-            if(tile.progress < 100) {
+            let k = tile.progress >= 100 ? tile.type+'_02' : tile.type+'_01';
+            if(images[k] && images[k].isLoaded) ctx.drawImage(images[k], px, py, TILE_SIZE, TILE_SIZE);
+            if(tile.progress < 100) { 
                 ctx.fillStyle = gameState.energy >= 90 ? "#f1c40f" : "#4caf50";
                 ctx.fillRect(px + TILE_SIZE*0.15, py + TILE_SIZE*0.8, (tile.progress/100)*(TILE_SIZE*0.7), TILE_SIZE*0.08);
             }
@@ -511,7 +393,7 @@ function togglePanel(type) {
     } else if (type === 'shop') {
         document.getElementById('panel-title').innerText = '種子商城';
         let shopHTML = `<div style="margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-            <button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 隨機一鍵播種</button>
+            <button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 一鍵播種</button>
         </div>`;
         for (let key in SEED_DATA) {
             let seed = SEED_DATA[key];
@@ -540,21 +422,35 @@ function togglePanel(type) {
 
 function updateUI() {
     document.getElementById('coin-count').innerText = Math.floor(gameState.coins);
-    if (gameState.isPro) { document.getElementById('pro-badge').classList.remove('hidden'); } else { document.getElementById('pro-badge').classList.add('hidden'); }
+    if (gameState.isPro) { document.getElementById('pro-badge').classList.remove('hidden'); } 
+    else { document.getElementById('pro-badge').classList.add('hidden'); }
+    
     let energyFill = document.getElementById('energy-fill');
     energyFill.style.width = gameState.energy + "%";
-    if (gameState.energy >= 90) { energyFill.style.background = "#f1c40f"; energyFill.style.boxShadow = "0 0 10px #f1c40f"; } else { energyFill.style.background = "#e67e22"; energyFill.style.boxShadow = "none"; }
+    if (gameState.energy >= 90) { 
+        energyFill.style.background = "#f1c40f"; 
+        energyFill.style.boxShadow = "0 0 10px #f1c40f"; 
+    } else { 
+        energyFill.style.background = "#e67e22"; 
+        energyFill.style.boxShadow = "none"; 
+    }
+    
     const energyLabel = document.querySelector('.energy-panel .label');
     if (energyLabel) { energyLabel.innerHTML = `寵物活力：<span id="energy-num">${Math.floor(gameState.energy)}</span>%`; }
+    
     let cp = gameState.currentPet;
     let stat = gameState.petStats[cp];
     document.getElementById('exp-fill').style.width = (stat.exp / (stat.lv * 100) * 100) + "%";
     document.getElementById('pig-lv').innerText = stat.lv;
     document.getElementById('player-name-display').innerText = currentUser + " 的 " + PET_DATA[cp].title;
     document.getElementById('current-seed-name').innerText = SEED_DATA[currentSeed].name;
+    
     let petImgKey = cp + "_Down";
     if (!images[petImgKey] || !images[petImgKey].isLoaded) petImgKey = "pig_Down";
-    if (images[petImgKey] && images[petImgKey].isLoaded) { document.getElementById('pig-img').src = images[petImgKey].src; document.getElementById('pig-img').style.display = 'block'; }
+    if (images[petImgKey] && images[petImgKey].isLoaded) { 
+        document.getElementById('pig-img').src = images[petImgKey].src; 
+        document.getElementById('pig-img').style.display = 'block'; 
+    }
 }
 
 loadAssets();

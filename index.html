@@ -19,9 +19,28 @@
             </ul>
 
             <input type="text" id="username-input" placeholder="請輸入你的勇者姓名">
-            <button onclick="login()" class="start-btn">開始特訓</button>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button onclick="login()" class="start-btn" style="flex: 2;">開始特訓</button>
+                <button onclick="showTutorial()" class="info-btn" style="flex: 1;">📖 說明</button>
+            </div>
             
             <div class="author-tag">英文教育專家、家教名師 Ryan 研發出品</div>
+        </div>
+    </div>
+
+    <div id="tutorial-modal" class="hidden">
+        <div class="tutorial-box">
+            <button class="close-btn" onclick="closeTutorial()">✖</button>
+            <h3>📖 遊戲新手指南</h3>
+            <div class="tutorial-text">
+                <p><b>1. 努力答題：</b>答對單字可獲得金幣與寵物活力，答錯則扣除活力並記錄在錯題本。</p>
+                <p><b>2. 經營農場：</b>去「種子商城」買種子，點擊空地種下。⚠️ <b>植物只會因為你答對題目或寵物踩踏而生長，掛網是沒用的喔！</b></p>
+                <p><b>3. 狂熱模式：</b>當活力達 90% 以上，寵物會爆衝，大幅加速農作生長！</p>
+                <p><b>4. 寵物升級：</b>收成植物後去「背包管理」餵食寵物，寵物升級可大幅增加答題獲得的金幣！</p>
+                <p><b>5. 錯題複習：</b>去「錯題複習區」消滅錯題，可獲得超豐厚獎勵！</p>
+            </div>
+            <button onclick="closeTutorial()" class="unlock-btn" style="margin-top: 15px; background: #27ae60; box-shadow: 0 5px 0 #1e8449;">我準備好了</button>
         </div>
     </div>
 
@@ -110,8 +129,8 @@
 
             <div class="line-contact">
                 <p style="margin-bottom: 5px; font-weight: bold; color: #2c3e50;">請加入官方 LINE 獲取解鎖金鑰</p>
-                <img src="assets/line_qr.png" alt="LINE QR Code" onerror="this.src='https://via.placeholder.com/150x150?text=LINE+QR'" style="width: 130px; border-radius: 10px; margin: 5px 0; border: 3px solid #2ecc71;">
-                <p style="margin: 5px 0;">LINE ID: <b style="color: #27ae60; font-size: 1.2em;">@bear20020228</b></p>
+                <img src="assets/line_qr.png" alt="LINE QR Code" onerror="this.src='https://via.placeholder.com/150x150?text=LINE+QR'" style="width: 120px; border-radius: 10px; margin: 5px 0; border: 3px solid #2ecc71;">
+                <p style="margin: 5px 0;">LINE ID: <b style="color: #27ae60; font-size: 1.2em;">bear20020228</b></p>
                 <p style="font-size: 0.85em; color: #7f8c8d; margin-top: 0;">(支援 銀行匯款 / LINE Pay，免手續費)</p>
             </div>
 
