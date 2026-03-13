@@ -27,21 +27,9 @@
                 <button onclick="showTutorial()" class="info-btn" style="flex: 1;">📖 說明</button>
             </div>
             
+            <button onclick="showComingSoon()" class="future-btn">🚀 敬請期待 (未來重大更新)</button>
+            
             <div class="author-tag">英文教育專家、家教名師 Ryan 研發出品</div>
-        </div>
-    </div>
-
-    <div id="tutorial-modal" class="hidden">
-        <div class="tutorial-box">
-            <button class="close-btn" onclick="closeTutorial()">✖</button>
-            <h3>📖 遊戲新手指南</h3>
-            <div class="tutorial-text">
-                <p><b>1. 努力答題：</b>難度越高的單字，答對獲得的金幣越多！</p>
-                <p><b>2. 經營農場：</b>點擊右下角快捷鍵可瞬間完成播種與收成。</p>
-                <p><b>3. 狂熱模式：</b>活力 > 90% 寵物爆衝，收成速度翻倍！</p>
-                <p><b>4. 升級專業版：</b>解鎖高級單字庫 (Lv.3-6) 與頂級寵物。</p>
-            </div>
-            <button onclick="closeTutorial()" class="unlock-btn" style="margin-top: 15px; background: #27ae60; box-shadow: 0 5px 0 #1e8449;">我準備好了</button>
         </div>
     </div>
 
@@ -134,34 +122,75 @@
         </div>
     </div>
     
+    <div id="tutorial-modal" class="hidden">
+        <div class="tutorial-box">
+            <button class="close-btn" onclick="closeTutorial()">✖</button>
+            <h3>📖 遊戲新手指南</h3>
+            <div class="tutorial-text">
+                <p><b>1. 努力答題：</b>難度越高的單字，答對獲得的金幣越多！</p>
+                <p><b>2. 經營農場：</b>點擊右下角快捷鍵可瞬間完成播種與收成。</p>
+                <p><b>3. 狂熱模式：</b>活力 > 90% 寵物爆衝，收成速度翻倍！</p>
+                <p><b>4. 升級專業版：</b>解鎖高級單字庫 (Lv.3-6) 與頂級寵物。</p>
+            </div>
+            <button onclick="closeTutorial()" class="unlock-btn" style="margin-top: 15px; background: #27ae60; box-shadow: 0 5px 0 #1e8449;">我準備好了</button>
+        </div>
+    </div>
+
     <div id="paywall-modal" class="hidden">
         <div class="paywall-box">
             <button class="close-btn" onclick="closePaywall()">✖</button>
             <h3 style="color: #f39c12; margin-top: 0; font-size: 1.5em;">🌟 專業版 (Pro) 限時特惠</h3>
-            
             <div class="price-tag">首發特價：NT$ 299 <span class="old-price">$499</span></div>
-
             <p id="paywall-msg" style="font-weight: bold; color: #333; line-height: 1.5; margin: 10px 0;"></p>
-            
             <ul class="pro-features">
                 <li>解鎖 Level 3 ~ 6 所有 7000 單字庫</li>
                 <li>解鎖最強寵物「比比拉布」招募權限</li>
                 <li>AI 自動同步與永久雲端保存學習進度</li>
             </ul>
-
             <div class="line-contact">
                 <p style="margin-bottom: 5px; font-weight: bold; color: #2c3e50;">請加入官方 LINE 獲取解鎖金鑰</p>
                 <img src="assets/line_qr.png" alt="LINE QR Code" onerror="this.src='https://via.placeholder.com/150x150?text=LINE+QR'" style="width: 120px; border-radius: 10px; border: 3px solid #2ecc71;">
                 <p style="margin: 5px 0;">LINE ID: <b style="color: #27ae60; font-size: 1.2em;">bear20020228</b></p>
                 <p style="font-size: 0.85em; color: #7f8c8d; margin-top: 0;">(支援 銀行匯款 / LINE Pay)</p>
             </div>
-
             <div style="border-top: 2px dashed #ddd; margin: 15px 0;"></div>
             <input type="text" id="license-input" placeholder="已付款？請在此輸入金鑰">
             <button onclick="verifyLicenseKey()" class="unlock-btn">驗證並解鎖</button>
         </div>
     </div>
-<div id="rest-reminder-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 3000;">
+
+    <div id="coming-soon-modal" class="hidden">
+        <div class="coming-soon-box">
+            <button class="close-btn" onclick="closeComingSoon()">✖</button>
+            <h3 class="roadmap-title">🚀 未來重大更新藍圖</h3>
+            <p style="text-align: center; color: #7f8c8d; font-size: 0.9em; margin-top: -5px; margin-bottom: 15px;">開發團隊正在日夜趕工，以下全新模式即將登場！</p>
+            <div class="roadmap-content">
+                <div class="roadmap-item">
+                    <h4>⚗️ 魔法煉金鎮 (字源學挑戰)</h4>
+                    <p>將字首與字根如裝備般合成！提煉專屬「魔法肥料」，大幅縮短作物生長週期。</p>
+                </div>
+                <div class="roadmap-item">
+                    <h4>🎭 地方大戲院 (跨文化擴充包)</h4>
+                    <p>台語文、經典粵劇詞彙大挑戰！一鍵將農場切換為復古大戲院專屬場景。</p>
+                </div>
+                <div class="roadmap-item">
+                    <h4>🗼 菁英試煉塔 (進階學術挑戰)</h4>
+                    <p>挑戰克漏字填空與進階醫學、生科單字，掉落極稀有寶石解鎖「神級隱藏寵物」。</p>
+                </div>
+                <div class="roadmap-item">
+                    <h4>⚔️ 跨校公會戰 (社群排行榜)</h4>
+                    <p>揪團戰鬥！加入「延平校友會」等陣營，與各校菁英展開同儕間的良性競爭！</p>
+                </div>
+                <div class="roadmap-item">
+                    <h4>👿 易混淆大魔王 (終極防禦戰)</h4>
+                    <p>專治形、音、義混淆單字！在限時內揪出錯誤單字，擊敗大魔王！</p>
+                </div>
+            </div>
+            <button onclick="closeComingSoon()" class="unlock-btn" style="margin-top: 15px; background: #8e44ad; box-shadow: 0 5px 0 #732d91;">太期待了！</button>
+        </div>
+    </div>
+
+    <div id="rest-reminder-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 3000;">
         <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; border: 5px solid #2ecc71; max-width: 400px;">
             <h2 style="color: #27ae60; font-size: 1.8em; margin-top: 0;">⏳ 休息一下吧！</h2>
             <p style="font-size: 1.1em; color: #2c3e50; line-height: 1.6;">你已經連續特訓 <b>1 個小時</b>了！<br>農場的寵物們也需要喝口水。<br>請讓眼睛離開螢幕 5 到 10 分鐘喔！</p>
@@ -176,12 +205,13 @@
             </div>
             <p style="color: #7f8c8d; font-size: 1em; margin-bottom: 20px;">必須連續答對所有錯題，才能回到農場！<br><span id="forced-progress" style="color: #e74c3c; font-weight: bold; font-size: 1.2em;">剩餘：30 題</span></p>
             
-            <h1 id="forced-word-display" style="color: #c0392b; font-size: 2.8em; margin: 20px 0;">Word</h1>
+            <h1 id="forced-word-display" style="color: #c0392b; font-size: 2.8em; margin: 20px 0; word-break: break-word;">Word</h1>
             
             <div id="forced-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;">
                 </div>
         </div>
     </div>
+
     <script src="vocab.js"></script>
     <script src="script.js"></script>
 </body>

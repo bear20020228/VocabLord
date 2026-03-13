@@ -121,6 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function showTutorial() { document.getElementById('tutorial-modal').classList.remove('hidden'); }
 function closeTutorial() { document.getElementById('tutorial-modal').classList.add('hidden'); }
+function showComingSoon() { document.getElementById('coming-soon-modal').classList.remove('hidden'); }
+function closeComingSoon() { document.getElementById('coming-soon-modal').classList.add('hidden'); }
 
 function login() {
     currentUser = document.getElementById('username-input').value.trim();
