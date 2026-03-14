@@ -39,7 +39,7 @@ const SEED_DATA = {
 };
 
 // ==========================================
-// 🔥 字源學題庫與狂熱模式變數 🔥
+// 🔥 狂熱模式變數與題庫
 // ==========================================
 const ETYMOLOGY_DATA = [
     { root: "dict", meaning: "說 / 言語", options: ["聽 / 聲音", "看 / 視覺", "走 / 移動"] },
@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const lastUser = localStorage.getItem('last_user_vocablord');
     if (lastUser) { document.getElementById('username-input').value = lastUser; }
     
-    // 🔥 修復手機版 Bug：將浮動面板移出農場，保證在任何畫面都能置中彈出
+    // 修復手機版浮動面板層級問題
     const panel = document.getElementById('floating-panel');
     if (panel) {
         document.body.appendChild(panel);
@@ -134,6 +134,11 @@ function showComingSoon() { document.getElementById('coming-soon-modal').classLi
 function closeComingSoon() { document.getElementById('coming-soon-modal').classList.add('hidden'); }
 
 function login() {
+    // 🔥 解除手機瀏覽器語音限制的密技
+    if ('speechSynthesis' in window) {
+        let silentUtterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(silentUtterance);
+    }
     currentUser = document.getElementById('username-input').value.trim();
     if (!currentUser) return showToast("請輸入勇者姓名！", "error");
     localStorage.setItem('last_user_vocablord', currentUser);
@@ -165,13 +170,41 @@ function showPaywall(msg) {
 }
 function closePaywall() { document.getElementById('paywall-modal').classList.add('hidden'); }
 
+// ==========================================
+// 💎 專業版金鑰雲端驗證系統
+// ==========================================
 async function verifyLicenseKey() {
-    const key = document.getElementById('license-input').value.replace(/\s+/g, '').toUpperCase();
-    if (key === "PRO123") { // 開發測試用快捷鍵
+    const inputElem = document.getElementById('license-input');
+    const btnElem = document.querySelector('#paywall-modal .unlock-btn');
+    const key = inputElem.value.replace(/\s+/g, '').toUpperCase();
+    if (!key) return showToast("請輸入金鑰！", "error");
+    
+    // 開發者測試金鑰
+    if (key === "PRO123") {
         gameState.isPro = true; saveGame(); updateUI(); closePaywall(); 
-        showToast("🎉 測試金鑰驗證成功！", "success"); 
-    } else {
-        showToast("⚠️ 驗證失敗：無效金鑰", "error"); 
+        return showToast("🎉 測試金鑰驗證成功！", "success"); 
+    }
+
+    // Google App Script API 驗證
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJm3AvAS-vwd841tmJVwPMt7VT9ufh_maHenZGTj_XVQ10gRNskiA6k2ptJiekNgp_/exec"; 
+    btnElem.innerText = "⏳ 雲端連線驗證中..."; btnElem.disabled = true;
+    try {
+        const response = await fetch(`${SCRIPT_URL}?key=${key}&user=${currentUser}`);
+        const data = await response.json();
+        if (data.success) { 
+            gameState.isPro = true; saveGame(); updateUI(); closePaywall(); 
+            showToast("🎉 金鑰驗證成功！您已解鎖專業版！", "success"); 
+        } else { 
+            let msg = data.message;
+            if (msg.includes("使用") || msg.includes("綁定")) {
+                msg = "⚠️ 驗證失敗：此金鑰無效或已被綁定！";
+            }
+            showToast(msg, "error"); 
+        }
+    } catch (error) { 
+        showToast("連線驗證失敗，請檢查網路。", "error"); 
+    } finally { 
+        btnElem.innerText = "驗證並解鎖"; btnElem.disabled = false; 
     }
 }
 
@@ -196,7 +229,7 @@ function getCoinReward(wordLv) {
 }
 
 // ==========================================
-// 🔥 核心答題邏輯 (已補回並升級狂熱機制)
+// 🔥 核心答題與連勝邏輯
 // ==========================================
 function loadQuestion() {
     if (typeof globalVocab === 'undefined') return;
@@ -265,6 +298,28 @@ function loadQuestion() {
                     showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
                 }
 
+                // 🔥 變動比率增強：15% 機率觸發 3 倍大爆擊！
+                let isCrit = Math.random() < 0.15; 
+                let growthMultiplier = isCrit ? 3 : 1;
+                let actuallyGrew = false;
+
+                gameState.farmTiles.forEach(r => r.forEach(t => { 
+                    if(t.plant && t.progress < 100) { 
+                        let f = SEED_DATA[t.type].growthFactor || 1; 
+                        t.progress = Math.min(100, t.progress + (10 * f * growthMultiplier)); 
+                        actuallyGrew = true;
+                    } 
+                }));
+
+                if (isCrit && actuallyGrew) {
+                    showToast("⚡ 爆擊！作物瘋狂生長！", "success");
+                    const farmCanvas = document.getElementById('farm-viewport');
+                    if(farmCanvas) {
+                        farmCanvas.classList.add('shake-animation');
+                        setTimeout(() => farmCanvas.classList.remove('shake-animation'), 500);
+                    }
+                }
+
                 saveGame(); updateUI();
                 
                 // 🔥 每 10 連勝觸發狂熱模式
@@ -279,7 +334,7 @@ function loadQuestion() {
 
                 showToast("❌ 答錯囉！連勝歸零", "error");
                 gameState.energy = Math.max(0, gameState.energy - 10); 
-                gameState.combo = 0; // 🔥 連勝歸零
+                gameState.combo = 0; 
                 currentWord.weight += 10; 
                 gameState.wordStats[currentWord.w].wrong += 1;
                 gameState.wordStats[currentWord.w].consecutive = 0; 
@@ -309,7 +364,7 @@ function loadQuestion() {
         if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
 
         showToast("💡 已標記！連勝歸零", "info");
-        gameState.combo = 0; // 🔥 連勝歸零
+        gameState.combo = 0; 
         currentWord.weight += 10; 
         if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
         gameState.wordStats[currentWord.w].wrong += 1;
@@ -365,10 +420,10 @@ function startFeverMode() {
             
             if (o === q.meaning) {
                 b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
-                showToast("✨ 狂熱成功！全農場作物暴增 50% 生長度！", "success");
+                showToast("✨ 狂熱成功！全農場作物大暴增！", "success");
                 
                 gameState.farmTiles.forEach(r => r.forEach(t => { 
-                    if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 50); } 
+                    if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 30); } 
                 }));
                 gameState.coins += 200; 
             } else {
@@ -745,7 +800,7 @@ function togglePanel(type) {
             hasItem = true;
             invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;">
                 <span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span>
-                <button onclick="useRenameScroll()" style="width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91;">✨ 改變命運 (使用)</button>
+                <button onclick="useRenameScroll()" style="width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">✨ 改變命運 (使用)</button>
             </div>`;
         }
         for (let key in SEED_DATA) {
@@ -777,6 +832,43 @@ function togglePanel(type) {
             else petHTML += `<div class="shop-item" style="background: #fdf2e9;"><span style="font-weight:bold;">${pData.title} <br><small>${pData.desc}</small></span><button onclick="buyPet('${key}')" style="background: ${(key === 'cat' && !gameState.isPro) ? "#95a5a6" : "#e74c3c"}">${(key === 'cat' && !gameState.isPro) ? "🔒 PRO專屬" : `💰${pData.cost}`}</button></div>`;
         }
         document.getElementById('panel-body').innerHTML = petHTML;
+    }
+}
+
+// ==========================================
+// 👑 傳說改名卷軸使用邏輯
+// ==========================================
+function useRenameScroll() {
+    if (!gameState.inventory['renameScroll'] || gameState.inventory['renameScroll'] <= 0) return;
+    
+    let target = prompt("請輸入數字選擇要改名的對象：\n[1] 勇者姓名 (你自己)\n[2] 目前的寵物");
+    if (target === "1") {
+        let newName = prompt("請輸入新的勇者姓名：");
+        if (newName && newName.trim()) {
+            let oldName = currentUser;
+            currentUser = newName.trim();
+            // 轉移存檔
+            let oldData = localStorage.getItem('vocabMaster_' + oldName);
+            if(oldData) {
+                localStorage.setItem('vocabMaster_' + currentUser, oldData);
+                localStorage.removeItem('vocabMaster_' + oldName);
+            }
+            localStorage.setItem('last_user_vocablord', currentUser);
+            gameState.inventory['renameScroll']--;
+            saveGame(); updateUI(); togglePanel('inventory');
+            showToast("✨ 命運已改寫！勇者姓名已變更！", "success");
+        }
+    } else if (target === "2") {
+        let newPetName = prompt("請輸入寵物的新名字：");
+        if (newPetName && newPetName.trim()) {
+            let cp = gameState.currentPet;
+            gameState.petStats[cp].customName = newPetName.trim();
+            gameState.inventory['renameScroll']--;
+            saveGame(); updateUI(); togglePanel('inventory');
+            showToast("✨ 契約已重鑄！寵物姓名已變更！", "success");
+        }
+    } else {
+        showToast("取消改名。", "info");
     }
 }
 
@@ -826,39 +918,35 @@ function switchTab(tabName) {
 }
 
 // ==========================================
-// 👑 傳說改名卷軸使用邏輯
+// 🔊 單字發音系統 (Google 雲端真人神經語音版)
 // ==========================================
-function useRenameScroll() {
-    if (!gameState.inventory['renameScroll'] || gameState.inventory['renameScroll'] <= 0) return;
+function speakCurrentWord(speedMode = 'normal') {
+    let displayElement = document.getElementById('word-display');
+    if (!displayElement) return;
     
-    let target = prompt("請輸入數字選擇要改名的對象：\n[1] 勇者姓名 (你自己)\n[2] 目前的寵物");
-    if (target === "1") {
-        let newName = prompt("請輸入新的勇者姓名：");
-        if (newName && newName.trim()) {
-            let oldName = currentUser;
-            currentUser = newName.trim();
-            // 轉移存檔
-            let oldData = localStorage.getItem('vocabMaster_' + oldName);
-            if(oldData) {
-                localStorage.setItem('vocabMaster_' + currentUser, oldData);
-                localStorage.removeItem('vocabMaster_' + oldName);
-            }
-            localStorage.setItem('last_user_vocablord', currentUser);
-            gameState.inventory['renameScroll']--;
-            saveGame(); updateUI(); togglePanel('inventory');
-            showToast("✨ 命運已改寫！勇者姓名已變更！", "success");
-        }
-    } else if (target === "2") {
-        let newPetName = prompt("請輸入寵物的新名字：");
-        if (newPetName && newPetName.trim()) {
-            let cp = gameState.currentPet;
-            gameState.petStats[cp].customName = newPetName.trim();
-            gameState.inventory['renameScroll']--;
-            saveGame(); updateUI(); togglePanel('inventory');
-            showToast("✨ 契約已重鑄！寵物姓名已變更！", "success");
-        }
+    let rawText = displayElement.innerText;
+    if (rawText === "Ready?" || rawText.trim() === "") return;
+
+    // 清洗單字：去掉斜線與括號
+    let cleanWord = rawText.split('/')[0].split('(')[0].trim();
+    
+    // 🔥 呼叫 Google 翻譯的隱藏版真人語音 API (極度自然的美式發音)
+    let url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-US&q=${encodeURIComponent(cleanWord)}`;
+    
+    // 建立 HTML5 音效播放器
+    let audio = new Audio(url);
+
+    // ⚡ 根據按鈕設定播放速度
+    if (speedMode === 'slow') {
+        audio.playbackRate = 0.5; // 🐢 慢速模式：精準的 0.5 倍速，而且不會變聲！
     } else {
-        showToast("取消改名。", "info");
+        audio.playbackRate = 1.0; // ▶ 正常真人語速
     }
+
+    // 播放聲音
+    audio.play().catch(e => {
+        console.error("雲端發音載入失敗", e);
+        showToast("⚠️ 無法播放發音，請檢查網路連線", "error");
+    });
 }
 loadAssets();

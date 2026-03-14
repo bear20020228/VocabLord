@@ -22,12 +22,9 @@
 
             <input type="text" id="username-input" placeholder="請輸入你的勇者姓名">
             
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button onclick="login()" class="start-btn" style="flex: 2;">開始特訓</button>
-                <button onclick="showTutorial()" class="info-btn" style="flex: 1;">📖 說明</button>
-            </div>
-            
-            <button onclick="showComingSoon()" class="future-btn">🚀 敬請期待 (未來重大更新)</button>
+            <button class="start-btn" onclick="login()" style="margin-top: 15px; background: #e67e22; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.2em; font-weight: bold; cursor: pointer; box-shadow: 0 5px 0 #d35400; width: 100%;">⚔️ 開始特訓</button>
+            <button onclick="showTutorial()" style="margin-top: 12px; background: transparent; color: #3498db; border: 2px solid #3498db; padding: 12px 30px; border-radius: 25px; font-size: 1.1em; font-weight: bold; cursor: pointer; width: 100%;">📖 遊戲玩法說明</button>
+            <button onclick="showComingSoon()" class="future-btn" style="margin-top: 15px;">🚀 敬請期待 (未來重大更新)</button>
             
             <div class="author-tag">英文教育專家、家教名師 Ryan 研發出品</div>
         </div>
@@ -66,7 +63,19 @@
                         </select>
                         <br><span style="color:#f39c12; margin-top:5px; display:inline-block; font-weight:bold;" id="reward-hint">答對獎勵：💰 載入中...</span>
                     </div>
-                    <h1 id="word-display">Ready?</h1>
+                    
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 15px; margin-top: 10px;">
+                        <h1 id="word-display" style="margin: 0; font-size: 2.2em; word-break: break-word; text-align: center; color: #2c3e50;">Ready?</h1>
+                        <div style="display: flex; gap: 12px;">
+                            <button onclick="speakCurrentWord('normal')" style="background: #3498db; color: white; border: none; padding: 8px 20px; border-radius: 25px; font-weight: bold; font-size: 0.95em; box-shadow: 0 4px 0 #2980b9; cursor: pointer; transition: 0.1s;">
+                                ▶ 正常發音
+                            </button>
+                            <button onclick="speakCurrentWord('slow')" style="background: #9b59b6; color: white; border: none; padding: 8px 20px; border-radius: 25px; font-weight: bold; font-size: 0.95em; box-shadow: 0 4px 0 #8e44ad; cursor: pointer; transition: 0.1s;">
+                                🐢 慢速
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="options-grid"></div>
                 </div>
 
@@ -122,6 +131,7 @@
                 </div>
             </main>
        </div> 
+       
        <div id="mobile-nav" class="hidden-desktop">
             <button onclick="switchTab('quiz')" id="nav-quiz-btn" class="nav-btn active">📝 答題區</button>
             <button onclick="switchTab('farm')" id="nav-farm-btn" class="nav-btn">🚜 我的莊園</button>

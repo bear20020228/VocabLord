@@ -279,4 +279,20 @@ body.is-pro #ui-overlays { left: 20px; }
         z-index: 100 !important;
     }
 }
+/* 修復付費牆在手機上過大、需要滾動的問題 */
+    .paywall-box {
+        width: 92% !important; 
+        padding: 20px 15px !important; 
+        max-height: 95vh !important;
+        display: flex; flex-direction: column; justify-content: center;
+    }
+    .paywall-box h3 { font-size: 1.3em !important; margin-bottom: 5px !important; }
+    .price-tag { font-size: 1.2em !important; padding: 10px !important; margin: 8px 0 !important; }
+    .pro-features { padding: 10px 10px 10px 25px !important; margin: 8px 0 !important; font-size: 0.85em !important; }
+    .pro-features li { margin-bottom: 5px !important; }
+    .line-contact { padding: 8px !important; margin-bottom: 8px !important; }
+    .line-contact img { width: 80px !important; }
+    .line-contact p { font-size: 0.85em !important; margin: 3px 0 !important; }
+    #license-input { padding: 10px !important; margin-bottom: 10px !important; font-size: 1em !important; height: 45px !important; }
+    #paywall-modal .unlock-btn { padding: 12px !important; font-size: 1.1em !important; height: 50px !important; margin-bottom: 0 !important; }
 }
