@@ -77,7 +77,10 @@
                     </div>
                     <div class="user-info">
                         <div class="lv-badge"><span id="player-name-display">載入中...</span> <span id="pro-badge" class="hidden">PRO</span></div>
-                        <div class="money">💰 <span id="coin-count">100</span> | Lv.<span id="pig-lv">1</span> <span id="combo-badge" class="hidden" style="color:#e74c3c; font-size:0.8em; margin-left:8px; background:#fef5e7; padding:2px 8px; border-radius:12px; border:1px solid #f39c12;">🔥 <span id="combo-count">0</span> 連勝</span></div>
+                        <div class="money" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; line-height: 1.2;">
+    <span>💰 <span id="coin-count">100</span> | Lv.<span id="pig-lv">1</span></span>
+    <span id="combo-badge" class="hidden" style="color:#e74c3c; font-size:0.85em; background:#fef5e7; padding:2px 8px; border-radius:12px; border:1px solid #f39c12; white-space: nowrap; display: inline-block;">🔥 <span id="combo-count">0</span> 連勝</span>
+</div>
                         <div class="exp-bar-bg"><div id="exp-fill"></div></div>
                     </div>
                 </div>
@@ -92,10 +95,17 @@
                             <option value="all">混合全單字</option>
                         </select>
                         <br>
-                         <label style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: #e8f8f5; padding: 5px 12px; border-radius: 15px; border: 2px solid #1abc9c; color: #16a085; margin-top: 10px; font-weight: bold;">
-                           <input type="checkbox" id="en-en-mode-toggle" onchange="toggleEnEnMode()" style="transform: scale(1.2);">
-                             🔥 菁英英英模式 (金幣 x2)
-                      </label>
+                <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                    <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; background: #e8f8f5; padding: 5px 12px; border-radius: 15px; border: 2px solid #1abc9c; color: #16a085; font-weight: bold; width: 220px; justify-content: center;">
+                        <input type="checkbox" id="en-en-mode-toggle" onchange="toggleEnEnMode()" style="transform: scale(1.2);">
+                        📖 英英解釋 (金幣 x2)
+                    </label>
+
+                    <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; background: #ebf5fb; padding: 5px 12px; border-radius: 15px; border: 2px solid #3498db; color: #2980b9; font-weight: bold; width: 220px; justify-content: center;">
+                        <input type="checkbox" id="synonym-mode-toggle" onchange="toggleSynonymMode()" style="transform: scale(1.2);">
+                        🔗 同義字挑戰 (金幣 x2)
+                    </label>
+                </div>
 
                         <br><span style="color:#f39c12; margin-top:5px; display:inline-block; font-weight:bold;" id="reward-hint">答對獎勵：💰 載入中...</span>
                     </div>
@@ -183,6 +193,18 @@
             <div id="daily-task-list" style="display: flex; flex-direction: column; gap: 12px;">
                 </div>
             <button onclick="document.getElementById('daily-task-modal').classList.add('hidden')" style="margin-top: 20px; padding: 12px 30px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: bold; cursor: pointer; width: 100%;">關閉</button>
+        </div>
+    </div>
+
+    <div id="shield-prompt-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 7000;">
+        <div style="background: white; padding: 25px; border-radius: 20px; text-align: center; border: 5px solid #e74c3c; max-width: 350px; width: 85%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size: 3em; margin-bottom: 10px;">🛡️</div>
+            <h2 style="margin-top:0; color: #c0392b;">連勝危機！</h2>
+            <p id="shield-prompt-msg" style="font-size: 1.05em; font-weight: bold; color: #2c3e50; line-height: 1.5; margin-bottom: 20px;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resolveShieldPrompt(false)" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">放棄連勝</button>
+                <button onclick="resolveShieldPrompt(true)" style="flex: 1; padding: 12px; background: #f39c12; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #d35400;">💰1500 購買</button>
+            </div>
         </div>
     </div>
 
