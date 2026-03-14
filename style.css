@@ -295,4 +295,69 @@ body.is-pro #ui-overlays { left: 20px; }
     .line-contact p { font-size: 0.85em !important; margin: 3px 0 !important; }
     #license-input { padding: 10px !important; margin-bottom: 10px !important; font-size: 1em !important; height: 45px !important; }
     #paywall-modal .unlock-btn { padding: 12px !important; font-size: 1.1em !important; height: 50px !important; margin-bottom: 0 !important; }
+
+
+
+/* ================= 世界大廳樣式 ================= */
+#world-map-screen {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #2c3e50, #4ca1af);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 40px 20px; box-sizing: border-box;
+}
+.world-header { text-align: center; color: white; margin-bottom: 30px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.world-header h2 { font-size: 2.2em; margin: 0 0 10px 0; letter-spacing: 2px; }
+.world-header p { font-size: 1.2em; margin: 0; opacity: 0.9; }
+
+.realm-container {
+    display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 500px;
+}
+.realm-card {
+    background: white; border-radius: 20px; padding: 25px 20px; text-align: center;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3); position: relative; overflow: hidden;
+    transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.active-realm { cursor: pointer; border: 4px solid #2ecc71; }
+.active-realm:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 15px 25px rgba(0,0,0,0.4); }
+.locked-realm { background: #ecf0f1; border: 4px solid #bdc3c7; cursor: not-allowed; opacity: 0.8; }
+.locked-realm img { filter: grayscale(100%); }
+
+.realm-icon { font-size: 3.5em; margin-bottom: 10px; line-height: 1; }
+.realm-card h3 { color: #2c3e50; font-size: 1.5em; margin: 0 0 8px 0; font-weight: 900; }
+.realm-card p { color: #7f8c8d; font-size: 0.95em; margin: 0 0 15px 0; font-weight: bold; }
+
+.enter-btn {
+    background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; border: none;
+    padding: 12px 30px; border-radius: 25px; font-size: 1.1em; font-weight: bold;
+    box-shadow: 0 4px 0 #1e8449; width: 80%; cursor: pointer; transition: 0.1s;
+}
+.active-realm:active .enter-btn { transform: translateY(4px); box-shadow: none; }
+.locked-badge {
+    background: #7f8c8d; color: white; padding: 10px; border-radius: 12px;
+    font-weight: bold; width: 80%; margin: 0 auto;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* ================= RPG 飄字特效 ================= */
+.floating-text {
+    position: absolute;
+    font-weight: 900;
+    font-size: 2em;
+    pointer-events: none; /* 避免擋住點擊 */
+    animation: floatUpAndFade 1.2s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
+    z-index: 9999;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 5px rgba(255,255,255,0.8);
+}
+
+@keyframes floatUpAndFade {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    15% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+    80% { transform: translateY(-80px) scale(1); opacity: 1; }
+    100% { transform: translateY(-100px) scale(1); opacity: 0; }
+}
 }

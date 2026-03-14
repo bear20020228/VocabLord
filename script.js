@@ -35,7 +35,7 @@ const PET_DATA = {
 const SEED_DATA = {
     carrot: { id: 'carrot', name: '🥕 蘿蔔', cost: 20, sellPrice: 35, unlockLv: 1, exp: 35, growthFactor: 1.0 },
     tomato: { id: 'tomato', name: '🍅 番茄', cost: 150, sellPrice: 250, unlockLv: 5, exp: 100, growthFactor: 0.5 },
-    radish: { id: 'radish', name: '🧅 甜菜', cost: 800, sellPrice: 1200, unlockLv: 10, exp: 300, growthFactor: 0.2 }
+    radish: { id: 'radish', name: '🧅 甜菜', cost: 800, sellPrice: 300, unlockLv: 10, exp: 300, growthFactor: 0.2 }
 };
 
 // ==========================================
@@ -54,6 +54,7 @@ const ETYMOLOGY_DATA = [
     { root: "ject", meaning: "投 / 擲", options: ["抓 / 握", "推 / 壓", "拉 / 拖"] }
 ];
 let isFeverMode = false;
+let isEnEnMode = false; // 是否開啟英英字典模式
 let feverTimer = null;
 
 let currentSeed = 'carrot';
@@ -119,7 +120,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const lastUser = localStorage.getItem('last_user_vocablord');
     if (lastUser) { document.getElementById('username-input').value = lastUser; }
     
-    // 修復手機版浮動面板層級問題
     const panel = document.getElementById('floating-panel');
     if (panel) {
         document.body.appendChild(panel);
@@ -134,7 +134,6 @@ function showComingSoon() { document.getElementById('coming-soon-modal').classLi
 function closeComingSoon() { document.getElementById('coming-soon-modal').classList.add('hidden'); }
 
 function login() {
-    // 🔥 解除手機瀏覽器語音限制的密技
     if ('speechSynthesis' in window) {
         let silentUtterance = new SpeechSynthesisUtterance('');
         window.speechSynthesis.speak(silentUtterance);
@@ -150,15 +149,39 @@ function login() {
             Object.assign(gameState, oldState);
         } catch(e) {}
     }
-    gameState.combo = 0; // 登入時重置連勝
+    gameState.combo = 0; 
     
     migrateGrid(); 
+    checkDailyReset(); // 🔥 檢查是否為新的一天，重置每日任務 
     document.getElementById('in-game-difficulty').value = gameState.difficulty;
+    
+    // 隱藏登入，顯示大廳
     document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('world-map-screen').classList.remove('hidden');
+    document.getElementById('hub-player-name').innerText = currentUser; // 顯示玩家名稱
+}
+
+// ==========================================
+// 🌍 大廳與關卡切換邏輯
+// ==========================================
+function enterRealm(realmId) {
+    if (realmId !== 'english') {
+        showToast("🚧 此領域正在積極建設中，敬請期待！", "info");
+        return;
+    }
+    
+    // 進入英文農場
+    document.getElementById('world-map-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
     
     resize(); updateUI(); loadQuestion(); requestAnimationFrame(tick);
     if (window.innerWidth <= 1024) setTimeout(() => { switchTab('quiz'); }, 50);
+}
+
+function backToMap() {
+    // 從農場退回大廳
+    document.getElementById('game-container').classList.add('hidden');
+    document.getElementById('world-map-screen').classList.remove('hidden');
 }
 
 function saveGame() { if (currentUser) localStorage.setItem('vocabMaster_' + currentUser, JSON.stringify(gameState)); }
@@ -179,13 +202,11 @@ async function verifyLicenseKey() {
     const key = inputElem.value.replace(/\s+/g, '').toUpperCase();
     if (!key) return showToast("請輸入金鑰！", "error");
     
-    // 開發者測試金鑰
     if (key === "PRO123") {
         gameState.isPro = true; saveGame(); updateUI(); closePaywall(); 
         return showToast("🎉 測試金鑰驗證成功！", "success"); 
     }
 
-    // Google App Script API 驗證
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJm3AvAS-vwd841tmJVwPMt7VT9ufh_maHenZGTj_XVQ10gRNskiA6k2ptJiekNgp_/exec"; 
     btnElem.innerText = "⏳ 雲端連線驗證中..."; btnElem.disabled = true;
     try {
@@ -208,10 +229,43 @@ async function verifyLicenseKey() {
     }
 }
 
-function changeDifficulty() { 
-    const selector = document.getElementById('in-game-difficulty');
-    if (selector.value !== "1" && !gameState.isPro) { showPaywall("中高級單字庫為專業版專屬！"); selector.value = gameState.difficulty; return; }
-    gameState.difficulty = selector.value; saveGame(); loadQuestion(); 
+
+// ==========================================
+// 📖 英英字典菁英模式邏輯
+// ==========================================
+function toggleEnEnMode() {
+    isEnEnMode = document.getElementById('en-en-mode-toggle').checked;
+    
+    if (isEnEnMode) {
+        showToast("🔥 進入菁英英英模式！答對金幣加倍！載入需稍候...", "info");
+    } else {
+        showToast("切換回標準中文模式。", "info");
+    }
+    loadQuestion(); // 切換模式後立刻重新載入題目
+}
+
+// 🌐 呼叫免費外部字典 API 獲取英文解釋
+async function fetchEnglishDefinition(word) {
+    try {
+        // 清洗單字，去掉括號和多餘的空白
+        let cleanWord = word.split('/')[0].split('(')[0].trim().toLowerCase();
+        
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${cleanWord}`);
+        if (!response.ok) return null; // 找不到字就回傳 null
+        
+        const data = await response.json();
+        
+        // 嘗試抓取第一個意義的定義
+        if (data && data[0] && data[0].meanings && data[0].meanings[0] && data[0].meanings[0].definitions && data[0].meanings[0].definitions[0]) {
+            let def = data[0].meanings[0].definitions[0].definition;
+            // 避免解釋太長撐爆按鈕，截斷並加上...
+            return def.length > 70 ? def.substring(0, 67) + "..." : def;
+        }
+        return null;
+    } catch (e) {
+        console.error("字典 API 請求失敗", e);
+        return null;
+    }
 }
 
 function getPetSize(lv) { return Math.min(TILE_SIZE * 1.5, TILE_SIZE * 0.8 + (lv - 1) * (TILE_SIZE * 0.05)); }
@@ -229,122 +283,176 @@ function getCoinReward(wordLv) {
 }
 
 // ==========================================
-// 🔥 核心答題與連勝邏輯
+// 🔥 核心答題邏輯 (升級非同步選項引擎)
 // ==========================================
 function loadQuestion() {
     if (typeof globalVocab === 'undefined') return;
+
+    const displayContainer = document.getElementById('word-display').parentElement;
+    const btnContainer = displayContainer.querySelector('div');
+    if (btnContainer && btnContainer.style) btnContainer.style.display = 'flex';
 
     let pool = globalVocab.filter(v => !gameState.graduated[v.w]);
     if (gameState.difficulty !== "all") {
         let d = parseInt(gameState.difficulty);
         pool = pool.filter(v => v.lv >= d && v.lv <= d + 1);
     }
-    
     if (pool.length < 4) {
         pool = globalVocab.filter(v => v.lv >= parseInt(gameState.difficulty) && v.lv <= parseInt(gameState.difficulty) + 1);
         if (pool.length < 4) pool = globalVocab; 
     }
 
     pool.forEach(w => { if(typeof w.weight === 'undefined') w.weight = 10; });
-
     let totalWeight = pool.reduce((sum, word) => sum + word.weight, 0);
     let randomNum = Math.random() * totalWeight;
     for (let word of pool) { if (randomNum < word.weight) { currentWord = word; break; } randomNum -= word.weight; }
-    if (!currentWord.w) currentWord = pool[Math.floor(Math.random() * pool.length)];
+    if (!currentWord || !currentWord.w) currentWord = pool[Math.floor(Math.random() * pool.length)];
     
     document.getElementById('word-display').innerText = currentWord.w;
-    document.getElementById('reward-hint').innerText = `答對獎勵：💰 ${getCoinReward(currentWord.lv)}`;
+    
+    // 結算獎勵顯示 (英英模式 x2)
+    let baseReward = getCoinReward(currentWord.lv);
+    document.getElementById('reward-hint').innerText = `答對獎勵：💰 ${isEnEnMode ? baseReward * 2 : baseReward}`;
     
     const grid = document.getElementById('options-grid'); 
     grid.innerHTML = '';
     
-    let opts = [currentWord.c];
-    let failSafe = 0;
-    while(opts.length < 4 && failSafe < 100) {
-        let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
-        if(!opts.includes(r) && r !== undefined) opts.push(r);
-        failSafe++;
-    }
+    // 🔥 呼叫非同步生成引擎
+    generateOptionsAsync(grid, baseReward);
+}
+
+// ==========================================
+// 🎲 動態選項生成引擎 (處理中/英雙語邏輯)
+// ==========================================
+async function generateOptionsAsync(grid, baseReward) {
+    let optsData = []; 
     
-    opts.sort(() => Math.random() - 0.5).forEach(o => {
+    if (isEnEnMode) {
+        grid.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 20px; color: #7f8c8d; font-weight: bold;">🌐 正在連線字典 API 抓取英文解釋...</div>';
+        let correctDef = await fetchEnglishDefinition(currentWord.w);
+        if (!correctDef) {
+            showToast(`⚠️ 字典找不到 "${currentWord.w}"，此題暫時顯示中文`, "error");
+            optsData.push({ text: currentWord.c, isCorrect: true });
+        } else {
+            optsData.push({ text: correctDef, isCorrect: true });
+        }
+
+        let failSafe = 0; let usedWords = [currentWord.w];
+        while(optsData.length < 4 && failSafe < 50) {
+            let randomWordObj = globalVocab[Math.floor(Math.random() * globalVocab.length)];
+            if (!usedWords.includes(randomWordObj.w) && randomWordObj.c) {
+                usedWords.push(randomWordObj.w);
+                let wrongDef = await fetchEnglishDefinition(randomWordObj.w);
+                if (wrongDef && !optsData.some(o => o.text === wrongDef)) {
+                    optsData.push({ text: wrongDef, isCorrect: false });
+                } else if (!optsData.some(o => o.text === randomWordObj.c)) {
+                    optsData.push({ text: randomWordObj.c, isCorrect: false });
+                }
+            }
+            failSafe++;
+        }
+        grid.innerHTML = ''; 
+    } else {
+        optsData.push({ text: currentWord.c, isCorrect: true });
+        let failSafe = 0;
+        while(optsData.length < 4 && failSafe < 100) {
+            let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
+            if(!optsData.some(o => o.text === r) && r !== undefined) optsData.push({ text: r, isCorrect: false });
+            failSafe++;
+        }
+    }
+
+    optsData.sort(() => Math.random() - 0.5).forEach(o => {
         const b = document.createElement('button'); 
-        b.innerText = o;
-        if (o === currentWord.c) b.dataset.correct = "true";
+        b.innerText = o.text;
+        if (isEnEnMode && o.text.length > 20) {
+            b.style.fontSize = "0.8em"; b.style.padding = "10px"; b.style.lineHeight = "1.3";
+        }
+        if (o.isCorrect) b.dataset.correct = "true";
 
         b.onclick = () => {
             Array.from(grid.children).forEach(btn => btn.disabled = true);
-            if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
+            if (!gameState.wordStats[currentWord.w]) gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 };
 
-            if(o === currentWord.c) {
+            if(o.isCorrect) { 
                 b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
 
-                gameState.coins += getCoinReward(currentWord.lv); 
+                gameState.combo = (gameState.combo || 0) + 1;
+                let comboMultiplier = Math.min(2.0, 1.0 + Math.floor(gameState.combo / 5) * 0.1);
+                let finalReward = Math.floor((isEnEnMode ? baseReward * 2 : baseReward) * comboMultiplier);
+                
+                gameState.coins += finalReward; 
                 gameState.energy = Math.min(100, gameState.energy + 30);
                 currentWord.weight = Math.max(1, currentWord.weight - 3); 
                 gameState.wordStats[currentWord.w].correct += 1;
                 gameState.wordStats[currentWord.w].consecutive += 1;
                 
-                // 🔥 連勝計算
-                gameState.combo = (gameState.combo || 0) + 1;
+                if (typeof updateDailyTask === 'function') {
+                    updateDailyTask('correct50', 1, false); 
+                    updateDailyTask('combo15', gameState.combo, true); 
+                }
 
-                // 👑 終局神物：高級難度 50 連勝掉落改名卷軸
+                if (typeof showFloatingText === 'function') {
+                    if (comboMultiplier > 1.0) showFloatingText(`+${finalReward} 💰 (Combo x${comboMultiplier.toFixed(1)})`, "#f1c40f");
+                    else showFloatingText(`+${finalReward} 💰`, "#2ecc71");
+                }
+
                 if (gameState.combo === 50 && gameState.difficulty === "5") {
                     gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
                     showToast("🏆 神之領域！高級單字 50 連勝，獲得【傳說改名卷軸】！", "success");
                 }
-
                 if (gameState.wordStats[currentWord.w].consecutive >= 5) {
                     gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
                     showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
                 }
 
-                // 🔥 變動比率增強：15% 機率觸發 3 倍大爆擊！
                 let isCrit = Math.random() < 0.15; 
-                let growthMultiplier = isCrit ? 3 : 1;
                 let actuallyGrew = false;
-
                 gameState.farmTiles.forEach(r => r.forEach(t => { 
                     if(t.plant && t.progress < 100) { 
-                        let f = SEED_DATA[t.type].growthFactor || 1; 
-                        t.progress = Math.min(100, t.progress + (10 * f * growthMultiplier)); 
+                        t.progress = Math.min(100, t.progress + (10 * (SEED_DATA[t.type].growthFactor || 1) * (isCrit ? 3 : 1))); 
                         actuallyGrew = true;
                     } 
                 }));
-
-                if (isCrit && actuallyGrew) {
-                    showToast("⚡ 爆擊！作物瘋狂生長！", "success");
-                    const farmCanvas = document.getElementById('farm-viewport');
-                    if(farmCanvas) {
-                        farmCanvas.classList.add('shake-animation');
-                        setTimeout(() => farmCanvas.classList.remove('shake-animation'), 500);
-                    }
-                }
+                if (isCrit && actuallyGrew) showToast("⚡ 爆擊！作物瘋狂生長！", "success");
 
                 saveGame(); updateUI();
-                
-                // 🔥 每 10 連勝觸發狂熱模式
                 setTimeout(() => { 
-                    if (gameState.combo > 0 && gameState.combo % 10 === 0) startFeverMode();
-                    else loadQuestion(); 
+                    if (gameState.combo > 0 && gameState.combo % 10 === 0) {
+                        if (typeof startFeverMode === 'function') startFeverMode(); else loadQuestion();
+                    } else loadQuestion(); 
                 }, 400); 
             } else {
                 b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
                 let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
                 if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
 
-                showToast("❌ 答錯囉！連勝歸零", "error");
+                if (gameState.inventory['shield'] > 0) {
+                    gameState.inventory['shield']--;
+                    showToast("🛡️ 保護傘發動！抵銷一次連勝中斷！", "info");
+                } else {
+                    gameState.combo = 0; 
+                    showToast("❌ 答錯囉！連勝歸零", "error");
+                    setTimeout(() => {
+                        if(confirm("連勝被中斷了！😭\n要花費 💰1500 金幣立刻購買一把【🛡️ 連勝保護傘】以備下次使用嗎？")) {
+                            if (gameState.coins >= 1500) {
+                                gameState.coins -= 1500; gameState.inventory['shield'] = (gameState.inventory['shield'] || 0) + 1;
+                                saveGame(); updateUI(); showToast("🛍️ 購買成功！保護傘已放入背包。", "success");
+                            } else showToast("💰 金幣不足，購買失敗！", "error");
+                        }
+                    }, 400);
+                }
                 gameState.energy = Math.max(0, gameState.energy - 10); 
-                gameState.combo = 0; 
                 currentWord.weight += 10; 
                 gameState.wordStats[currentWord.w].wrong += 1;
                 gameState.wordStats[currentWord.w].consecutive = 0; 
 
-                if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+                if (!gameState.mistakes[currentWord.w]) gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 };
                 gameState.mistakes[currentWord.w].count += 1; 
                 saveGame(); updateUI();
                 
                 setTimeout(() => { 
-                    if (Object.keys(gameState.mistakes).length >= 30) startForcedReview();
+                    if (typeof startForcedReview === 'function' && Object.keys(gameState.mistakes).length >= 30) startForcedReview();
                     else loadQuestion(); 
                 }, 2000); 
             }
@@ -357,24 +465,25 @@ function loadQuestion() {
     idkBtn.style.gridColumn = "span 2"; idkBtn.style.padding = "10px"; idkBtn.style.fontSize = "0.95em"; 
     idkBtn.style.backgroundColor = "#f8f9fa"; idkBtn.style.color = "#7f8c8d"; idkBtn.style.border = "2px dashed #bdc3c7"; 
     idkBtn.style.boxShadow = "none";
-    
     idkBtn.onclick = () => {
         Array.from(grid.children).forEach(btn => btn.disabled = true);
         let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
         if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
 
-        showToast("💡 已標記！連勝歸零", "info");
-        gameState.combo = 0; 
+        if (gameState.inventory['shield'] > 0) {
+            gameState.inventory['shield']--; showToast("💡 已標記！(🛡️保護傘抵銷連勝中斷)", "info");
+        } else {
+            showToast("💡 已標記！連勝歸零", "info"); gameState.combo = 0; 
+        }
         currentWord.weight += 10; 
-        if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
-        gameState.wordStats[currentWord.w].wrong += 1;
-        gameState.wordStats[currentWord.w].consecutive = 0; 
-        if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+        if (!gameState.wordStats[currentWord.w]) gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 };
+        gameState.wordStats[currentWord.w].wrong += 1; gameState.wordStats[currentWord.w].consecutive = 0; 
+        if (!gameState.mistakes[currentWord.w]) gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 };
         gameState.mistakes[currentWord.w].count += 1; 
         saveGame(); updateUI();
 
         setTimeout(() => { 
-            if (Object.keys(gameState.mistakes).length >= 30) startForcedReview();
+            if (typeof startForcedReview === 'function' && Object.keys(gameState.mistakes).length >= 30) startForcedReview();
             else loadQuestion(); 
         }, 2000); 
     };
@@ -382,12 +491,17 @@ function loadQuestion() {
 }
 
 // ==========================================
-// 🔥 狂熱模式主程式 (10秒爆發挑戰)
+// 🔥 狂熱模式主程式 (新增字根圖鑑與訂正)
 // ==========================================
 function startFeverMode() {
     isFeverMode = true;
     let timeLeft = 10;
     
+    // 隱藏發音按鈕
+    const displayContainer = document.getElementById('word-display').parentElement;
+    const btnContainer = displayContainer.querySelector('div');
+    if (btnContainer) btnContainer.style.display = 'none';
+
     const sidebar = document.getElementById('sidebar');
     if (sidebar) {
         sidebar.style.border = "5px solid #e74c3c";
@@ -398,7 +512,11 @@ function startFeverMode() {
     const rewardHint = document.getElementById('reward-hint');
     const grid = document.getElementById('options-grid');
     
-    let q = ETYMOLOGY_DATA[Math.floor(Math.random() * ETYMOLOGY_DATA.length)];
+    // 過濾出還沒畢業的字根，如果全畢業了就重新開放全部
+    let availableRoots = ETYMOLOGY_DATA.filter(q => !gameState.graduated[`${q.root} (字根)`]);
+    if (availableRoots.length === 0) availableRoots = ETYMOLOGY_DATA;
+    let q = availableRoots[Math.floor(Math.random() * availableRoots.length)];
+    let wordKey = `${q.root} (字根)`; 
     
     wordDisplay.innerHTML = `<span style="color:#e74c3c; font-size: 0.8em;">🔥 狂熱挑戰！</span><br><span style="font-size:0.5em; color:#7f8c8d;">字根 / 字首：</span><br>${q.root}`;
     rewardHint.innerHTML = `⏳ 剩餘：<span style="color:#e74c3c; font-size:1.5em; font-weight:900;">${timeLeft}</span> 秒`;
@@ -413,26 +531,49 @@ function startFeverMode() {
         b.style.padding = "18px 12px"; b.style.fontSize = "1.15em"; b.style.fontWeight = "bold"; 
         b.style.border = "2px solid #bdc3c7"; b.style.borderRadius = "14px"; b.style.cursor = "pointer";
         b.style.backgroundColor = "white"; b.style.color = "#2c3e50";
+        if (o === q.meaning) b.dataset.correct = "true"; 
         
         b.onclick = () => {
             clearInterval(feverTimer); 
             Array.from(grid.children).forEach(btn => btn.disabled = true);
             
+            if (!gameState.wordStats[wordKey]) gameState.wordStats[wordKey] = { correct: 0, wrong: 0, consecutive: 0 };
+
             if (o === q.meaning) {
                 b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
                 showToast("✨ 狂熱成功！全農場作物大暴增！", "success");
                 
                 gameState.farmTiles.forEach(r => r.forEach(t => { 
-                    if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 30); } 
+                    if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 50); } 
                 }));
                 gameState.coins += 200; 
+                
+                // 記錄字根精通
+                gameState.wordStats[wordKey].correct += 1;
+                gameState.wordStats[wordKey].consecutive += 1;
+                if (gameState.wordStats[wordKey].consecutive >= 5) {
+                    gameState.graduated[wordKey] = { w: wordKey, c: q.meaning, lv: 7 };
+                    showToast(`🎓 恭喜！字根 [${q.root}] 已精通！`, "success");
+                }
+                saveGame(); updateUI();
+                setTimeout(endFeverMode, 1500);
             } else {
                 b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
-                showToast("❌ 狂熱失敗！", "error");
+                let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
+                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+                
+                showToast("❌ 狂熱失敗！已加入錯題本", "error");
                 gameState.combo = 0; 
+                
+                // 記錄字根錯誤並加入錯題本 (Lv 7)
+                gameState.wordStats[wordKey].wrong += 1;
+                gameState.wordStats[wordKey].consecutive = 0;
+                if (!gameState.mistakes[wordKey]) { gameState.mistakes[wordKey] = { w: wordKey, c: q.meaning, lv: 7, count: 0 }; }
+                gameState.mistakes[wordKey].count += 1; 
+                
+                saveGame(); updateUI();
+                setTimeout(endFeverMode, 2000); // 延長停留時間，讓學生訂正看清楚答案
             }
-            saveGame(); updateUI();
-            setTimeout(endFeverMode, 1500);
         };
         grid.appendChild(b);
     });
@@ -538,7 +679,7 @@ function loadForcedReviewQuestion() {
 }
 
 // ==========================================
-// 🔥 功能面板與圖鑑
+// 🔥 功能面板與圖鑑 (升級支援 Lv7 字根)
 // ==========================================
 function openReviewArea() { document.getElementById('review-screen').classList.remove('hidden'); renderReviewList(); }
 function closeReviewArea() { document.getElementById('review-screen').classList.add('hidden'); }
@@ -553,7 +694,11 @@ function renderReviewList() {
     let html = "";
     Object.keys(grouped).sort((a, b) => a - b).forEach(lv => {
         grouped[lv].sort((a, b) => b.count - a.count); 
-        html += `<h3 class="review-lv-header">Level ${lv} 單字</h3>`;
+        let headerHTML = lv == 7 
+            ? `<h3 class="review-lv-header" style="background: #c0392b; color: white;">🔥 狂熱字源學 (字根)</h3>`
+            : `<h3 class="review-lv-header">Level ${lv} 單字</h3>`;
+        html += headerHTML;
+        
         html += grouped[lv].map(m => `
             <div class="review-item">
                 <div class="review-word-info">
@@ -586,15 +731,15 @@ function renderGraduatedList() {
         .map(([w, data]) => {
             let isGrad = gameState.graduated[w];
             let cons = isGrad ? 5 : data.consecutive;
-            let wordObj = globalVocab.find(v => v.w === w);
-            let lv = wordObj ? wordObj.lv : (isGrad ? isGrad.lv : 1);
+            let wordObj = typeof globalVocab !== 'undefined' ? globalVocab.find(v => v.w === w) : null;
+            let lv = wordObj ? wordObj.lv : (isGrad ? isGrad.lv : (w.includes('字根') ? 7 : 1));
             let meaning = wordObj ? wordObj.c : (isGrad ? isGrad.c : "???");
             return { w, cons, lv, meaning, isGrad };
         });
 
     if (statsArr.length === 0) { 
         list.style.display = "block";
-        list.innerHTML = "<div class='empty-review'>還沒有解鎖任何單字圖鑑喔！<br>快去答題收集星星吧！🌟</div>"; 
+        list.innerHTML = "<div class='empty-review'>還沒有解鎖任何圖鑑喔！<br>快去答題收集星星吧！🌟</div>"; 
         return; 
     }
     
@@ -609,7 +754,11 @@ function renderGraduatedList() {
 
     Object.keys(grouped).sort((a, b) => a - b).forEach(lv => {
         grouped[lv].sort((a, b) => b.cons - a.cons);
-        html += `<h3 class="review-lv-header" style="background: linear-gradient(90deg, #d35400, #e67e22); color: white; border-left: 5px solid #f1c40f;">Level ${lv} 單字圖鑑</h3>`;
+        let headerHTML = lv == 7
+            ? `<h3 class="review-lv-header" style="background: linear-gradient(90deg, #c0392b, #e74c3c); color: white; border-left: 5px solid #f1c40f;">🔥 狂熱字源學 (精通)</h3>`
+            : `<h3 class="review-lv-header" style="background: linear-gradient(90deg, #d35400, #e67e22); color: white; border-left: 5px solid #f1c40f;">Level ${lv} 單字圖鑑</h3>`;
+        html += headerHTML;
+        
         html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding-bottom: 20px; padding-top: 10px;">`;
 
         grouped[lv].forEach(item => {
@@ -620,7 +769,7 @@ function renderGraduatedList() {
 
             html += `
             <div style="background: ${bgStyle}; border: 2px solid ${borderColor}; padding: 15px 10px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; margin-top: 5px;">
-                <div style="position: absolute; top: -12px; left: -5px; background: #34495e; color: white; font-size: 0.75em; font-weight: bold; padding: 4px 10px; border-radius: 10px; border: 2px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Lv.${item.lv}</div>
+                <div style="position: absolute; top: -12px; left: -5px; background: #34495e; color: white; font-size: 0.75em; font-weight: bold; padding: 4px 10px; border-radius: 10px; border: 2px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${lv == 7 ? '字根' : 'Lv.' + item.lv}</div>
                 <div style="margin-top: 8px;">
                     <div style="font-size: 1.3em; font-weight: 900; color: #2c3e50; margin-bottom: 5px; word-break: break-word;">${item.w}</div>
                     <div style="font-size: 0.85em; color: #7f8c8d; font-weight: bold; margin-bottom: 10px; line-height: 1.3;">${item.meaning}</div>
@@ -642,7 +791,7 @@ function reviveWord(sw) {
         delete gameState.graduated[wk]; 
         if (gameState.wordStats[wk]) { gameState.wordStats[wk].consecutive = 0; }
         saveGame(); renderGraduatedList();
-        showToast(`🔄 記憶消退！[${wk}] 已重新加入日常題庫！`, "info");
+        showToast(`🔄 記憶消退！[${wk}] 已重新加入題庫！`, "info");
     }
 }
 
@@ -668,8 +817,18 @@ function checkPetCollision(p) {
     if(tx>=0 && tx<COLS && ty>=0 && ty<ROWS && gameState.farmTiles[ty] && gameState.farmTiles[ty][tx]) {
         let t = gameState.farmTiles[ty][tx];
         if (t.plant) {
-            let b = (gameState.energy >= 90)?1.5:0.5;
-            if (t.progress < 100) { t.progress += b; } 
+            // ⚖️ 數值平衡：大幅削弱寵物催熟能力 (原本 0.5~1.5 改為 0.1~0.3)
+            let b = (gameState.energy >= 90) ? 0.3 : 0.1;
+            
+            if (t.progress < 100) { 
+                t.progress += b; 
+            } else if (t.progress >= 100) {
+                // 🚜 寵物自動收成功能
+                gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1;
+                t.plant = false; t.type = null; t.progress = 0;
+                let plantEmoji = t.type === 'radish' ? '🧅' : (t.type === 'tomato' ? '🍅' : '🥕');
+                showFloatingText(`+1 ${plantEmoji}`, "#2ecc71"); // 收成也會飄字
+            }
         }
     }
 }
@@ -795,13 +954,18 @@ function togglePanel(type) {
         const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
         let invHTML = `<div style="display:flex; gap:10px; margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;"><button onclick="autoHarvest()" style="flex:1; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;">🚜 一鍵收成</button></div>`;
         let hasItem = false;
-        // 📜 渲染改名卷軸
+        // 📜 渲染特殊道具
         if (gameState.inventory['renameScroll'] > 0) {
             hasItem = true;
-            invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;">
-                <span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span>
-                <button onclick="useRenameScroll()" style="width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">✨ 改變命運 (使用)</button>
-            </div>`;
+            invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;"><span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span><button onclick="useRenameScroll()" style="width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">✨ 改變命運 (使用)</button></div>`;
+        }
+        if (gameState.inventory['potion'] > 0) {
+            hasItem = true;
+            invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px dashed #2ecc71;"><span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #27ae60;">🧪 催熟藥水 x ${gameState.inventory['potion']}</span><button onclick="usePotion()" style="width:100%; background:#2ecc71; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #27ae60;">✨ 對全農場使用</button></div>`;
+        }
+        if (gameState.inventory['shield'] > 0) {
+            hasItem = true;
+            invHTML += `<div class="shop-item" style="background: #e8f8f5; border: 2px solid #1abc9c; margin-bottom: 10px;"><span style="font-weight: bold; color: #16a085;">🛡️ 連勝保護傘 x ${gameState.inventory['shield']}<br><small style="color:#7f8c8d;">(答錯時自動消耗)</small></span></div>`;
         }
         for (let key in SEED_DATA) {
             let count = gameState.inventory[key] || 0;
@@ -812,8 +976,25 @@ function togglePanel(type) {
         }
         document.getElementById('panel-body').innerHTML = hasItem ? invHTML : invHTML + "<p style='text-align:center; color:#777; margin-top:20px;'>背包空空的</p>";
     } else if (type === 'shop') {
-        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '種子商城';
-        let shopHTML = `<div style="margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;"><button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 一鍵播種</button></div>`;
+        const pTitle = document.getElementById('panel-title'); 
+        if(pTitle) pTitle.innerText = '農場商城';
+        
+        // 1. 盲盒轉蛋區 (美化按鈕樣式)
+        let shopHTML = `<h4 style="margin: 0 0 10px 0; color: #8e44ad; border-bottom: 2px solid #eee; padding-bottom: 5px;">🎁 幸運盲盒</h4>`;
+        shopHTML += `
+            <div class="shop-item" style="background: #fdf2e9; border: 2px dashed #e67e22; margin-bottom: 15px; padding: 15px; border-radius: 12px;">
+                <span style="font-weight: bold; color: #d35400;">神祕金蛋 (💰5000)<br><small style="color:#7f8c8d;">機率抽出大獎、道具或傳說卷軸！</small></span>
+                <button onclick="drawGacha()" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; font-weight: bold; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 0 #a04000, 0 5px 10px rgba(0,0,0,0.2); transition: 0.1s;">試試手氣</button>
+            </div>`;
+        
+        // 2. 魔法道具區 (🛡️ 藥水已被移除，僅剩保護傘)
+        shopHTML += `<h4 style="margin: 0 0 10px 0; color: #2980b9; border-bottom: 2px solid #eee; padding-bottom: 5px;">✨ 魔法道具</h4>`;
+        shopHTML += `<div class="shop-item" style="margin-bottom: 15px;"><span>🛡️ 連勝保護傘 (💰1500)<br><small style="color:#7f8c8d;">答錯時免除一次連勝歸零</small></span><button onclick="buyItem('shield', 1500)" style="background: #3498db; color: white;">購買</button></div>`;
+
+        // 3. 種子區
+        shopHTML += `<h4 style="margin: 0 0 10px 0; color: #27ae60; border-bottom: 2px solid #eee; padding-bottom: 5px;">🌱 種子包</h4>`;
+        shopHTML += `<div style="margin-bottom:10px;"><button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;">🌱 一鍵播種</button></div>`;
+        
         for (let key in SEED_DATA) {
             let seed = SEED_DATA[key]; let isUnlocked = gameState.petStats.pig.lv >= seed.unlockLv; 
             let btnBg = !isUnlocked ? '#bdc3c7' : (currentSeed === key ? '#f1c40f' : '#3498db');
@@ -834,6 +1015,99 @@ function togglePanel(type) {
         document.getElementById('panel-body').innerHTML = petHTML;
     }
 }
+// ==========================================
+// 🎁 道具購買與盲盒轉蛋邏輯
+// ==========================================
+function buyItem(itemKey, cost) {
+    if (gameState.coins >= cost) {
+        gameState.coins -= cost;
+        gameState.inventory[itemKey] = (gameState.inventory[itemKey] || 0) + 1;
+        saveGame(); updateUI();
+        showToast(`🛍️ 購買成功！已放入背包。`, "success");
+    } else {
+        showToast("💰 金幣不足！", "error");
+    }
+}
+
+function usePotion() {
+    if (!gameState.inventory['potion'] || gameState.inventory['potion'] <= 0) return;
+    let grewSomething = false;
+    gameState.farmTiles.forEach(r => r.forEach(t => { 
+        if(t.plant && t.progress < 100) { t.progress = 100; grewSomething = true; } 
+    }));
+    if (grewSomething) {
+        gameState.inventory['potion']--;
+        saveGame(); updateUI(); togglePanel('inventory');
+        showToast("✨ 魔法生效！全農場作物瞬間成熟！", "success");
+    } else {
+        showToast("🌱 目前沒有需要催熟的作物喔！", "info");
+    }
+}
+
+function drawGacha() {
+    let cost = 5000;
+    if (gameState.coins < cost) return showToast("💰 金幣不足！", "error");
+    
+    gameState.coins -= cost;
+    saveGame(); updateUI();
+    
+    togglePanel(); 
+    const modal = document.getElementById('gacha-modal');
+    const anim = document.getElementById('gacha-animation');
+    const resultBox = document.getElementById('gacha-result-box');
+    
+    modal.classList.remove('hidden');
+    anim.style.display = 'block';
+    anim.classList.add('gacha-shaking');
+    resultBox.classList.add('hidden');
+    resultBox.classList.remove('gacha-pop');
+
+    // ⚡ 縮短懸念：從 1.5 秒改為 0.5 秒，讓玩家可以快速連抽
+    setTimeout(() => {
+        anim.style.display = 'none';
+        anim.classList.remove('gacha-shaking');
+        resultBox.classList.remove('hidden');
+        resultBox.classList.add('gacha-pop'); 
+        
+        let r = Math.random();
+        let icon = ""; let title = ""; let desc = "";
+        
+        // ⚖️ 盲盒金幣回收機制：加入大量「虧錢」的獎勵
+        if (r < 0.02) {
+            gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
+            icon = "📜"; title = "🎉 歐皇降臨！"; desc = "極稀有！抽中【傳說改名卷軸】！";
+        } else if (r < 0.07) {
+            gameState.coins += 10000; // 5% 機率大賺
+            icon = "💰"; title = "財神爺保佑！"; desc = "爆富！抽中 10,000 金幣大賞！";
+        } else if (r < 0.22) {
+            gameState.coins += 3000; // 15% 機率小虧 (花5000拿3000)
+            icon = "💵"; title = "差一點回本！"; desc = "獲得 3,000 金幣。";
+        } else if (r < 0.50) {
+            gameState.coins += 2000; // 28% 機率大虧 (花5000拿2000)
+            icon = "🪙"; title = "虧本了！"; desc = "只獲得 2,000 金幣。";
+        } else if (r < 0.65) {
+            gameState.inventory['potion'] = (gameState.inventory['potion'] || 0) + 1; // 藥水變 1 罐
+            icon = "🧪"; title = "✨ 還算實用"; desc = "獲得【催熟藥水 x1】。";
+        } else if (r < 0.80) {
+            gameState.inventory['shield'] = (gameState.inventory['shield'] || 0) + 1; // 保護傘變 1 把
+            icon = "🛡️"; title = "有備無患"; desc = "獲得【連勝保護傘 x1】。";
+        } else {
+            gameState.inventory['radish'] = (gameState.inventory['radish'] || 0) + 3; // 20% 安慰獎
+            icon = "🧅"; title = "銘謝惠顧"; desc = "獲得【甜菜種子 x3】當作安慰獎。";
+        }
+        
+        document.getElementById('gacha-title').innerText = title;
+        document.getElementById('gacha-item-icon').innerText = icon;
+        document.getElementById('gacha-desc').innerText = desc;
+        
+        saveGame(); updateUI();
+    }, 500);
+}
+
+function closeGacha() {
+    document.getElementById('gacha-modal').classList.add('hidden');
+    togglePanel('shop'); 
+}
 
 // ==========================================
 // 👑 傳說改名卷軸使用邏輯
@@ -847,7 +1121,6 @@ function useRenameScroll() {
         if (newName && newName.trim()) {
             let oldName = currentUser;
             currentUser = newName.trim();
-            // 轉移存檔
             let oldData = localStorage.getItem('vocabMaster_' + oldName);
             if(oldData) {
                 localStorage.setItem('vocabMaster_' + currentUser, oldData);
@@ -918,6 +1191,77 @@ function switchTab(tabName) {
 }
 
 // ==========================================
+// 📜 每日懸賞系統 (Daily Quests)
+// ==========================================
+const DAILY_TASKS_CONFIG = [
+    { id: 'login', desc: '📅 每日登入簽到', goal: 1, reward: 50 },
+    { id: 'correct50', desc: '📝 本日累積答對 50 題', goal: 50, reward: 300 },
+    { id: 'combo15', desc: '🔥 達成一次 15 連勝', goal: 15, reward: 200 }
+];
+
+function checkDailyReset() {
+    let today = new Date().toLocaleDateString();
+    if (gameState.lastLoginDate !== today) {
+        gameState.lastLoginDate = today;
+        gameState.dailyProgress = { login: 1, correct50: 0, combo15: 0 };
+        gameState.dailyClaimed = { login: false, correct50: false, combo15: false };
+        saveGame();
+        setTimeout(() => showToast("🌅 新的一天開始了！每日任務已刷新！", "success"), 1000);
+    }
+}
+
+function updateDailyTask(taskId, amount = 1, isAbsolute = false) {
+    if (!gameState.dailyProgress) return;
+    if (isAbsolute) {
+        if (amount > gameState.dailyProgress[taskId]) gameState.dailyProgress[taskId] = amount;
+    } else {
+        gameState.dailyProgress[taskId] += amount;
+    }
+    saveGame();
+}
+
+function openDailyTasks() {
+    const list = document.getElementById('daily-task-list');
+    list.innerHTML = '';
+    
+    DAILY_TASKS_CONFIG.forEach(task => {
+        let current = gameState.dailyProgress[task.id] || 0;
+        let isComplete = current >= task.goal;
+        let isClaimed = gameState.dailyClaimed[task.id];
+        
+        let btnHTML = "";
+        if (isClaimed) {
+            btnHTML = `<button disabled style="background: #bdc3c7; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: not-allowed;">已領取</button>`;
+        } else if (isComplete) {
+            btnHTML = `<button onclick="claimDailyTask('${task.id}', ${task.reward})" style="background: #f1c40f; color: #d35400; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 3px 0 #e67e22; animation: pulse 1s infinite;">領 💰${task.reward}</button>`;
+        } else {
+            btnHTML = `<span style="color: #7f8c8d; font-weight: bold;">${current} / ${task.goal}</span>`;
+        }
+
+        list.innerHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 12px; border: 2px solid ${isComplete && !isClaimed ? '#f1c40f' : '#ecf0f1'};">
+                <div style="text-align: left;">
+                    <div style="font-weight: bold; color: #2c3e50; font-size: 1.1em;">${task.desc}</div>
+                    <div style="font-size: 0.85em; color: #e67e22; margin-top: 4px;">獎勵：💰 ${task.reward}</div>
+                </div>
+                <div>${btnHTML}</div>
+            </div>
+        `;
+    });
+    
+    document.getElementById('daily-task-modal').classList.remove('hidden');
+}
+
+function claimDailyTask(taskId, reward) {
+    gameState.dailyClaimed[taskId] = true;
+    gameState.coins += reward;
+    saveGame();
+    updateUI();
+    openDailyTasks(); // 重新渲染畫面
+    showToast(`🎉 任務完成！獲得 💰 ${reward} 金幣！`, "success");
+}
+
+// ==========================================
 // 🔊 單字發音系統 (終極穩定 + 系統相容版)
 // ==========================================
 function speakCurrentWord(speedMode = 'normal') {
@@ -927,31 +1271,26 @@ function speakCurrentWord(speedMode = 'normal') {
     let rawText = displayElement.innerText;
     if (rawText === "Ready?" || rawText.trim() === "") return;
 
-    // 清洗單字
     let cleanWord = rawText.split('/')[0].split('(')[0].trim();
     
     if (!('speechSynthesis' in window)) {
         return showToast("⚠️ 您的瀏覽器不支援發音", "error");
     }
 
-    // 1. 強制重置語音引擎 (解決 iOS/Chrome 卡死關鍵)
     window.speechSynthesis.cancel();
 
-    // 2. 使用 Timeout 確保 cancel 完全執行完畢後再播放
     setTimeout(() => {
         let utterance = new SpeechSynthesisUtterance(cleanWord);
         utterance.lang = 'en-US';
 
-        // 🎤 語速設定
         if (speedMode === 'slow') {
-            utterance.rate = 0.4; // 慢速
+            utterance.rate = 0.4; 
             utterance.pitch = 1.0;
         } else {
-            utterance.rate = 0.85; // 正常
+            utterance.rate = 0.85; 
             utterance.pitch = 1.1; 
         }
 
-        // 🎤 尋找高質量語音包 (這段一定要在 speak 之前)
         let voices = window.speechSynthesis.getVoices();
         let bestVoice = voices.find(v => 
             v.name.includes('Google US English') || 
@@ -961,15 +1300,35 @@ function speakCurrentWord(speedMode = 'normal') {
 
         if (bestVoice) utterance.voice = bestVoice;
 
-        // 3. 正式播放
         window.speechSynthesis.speak(utterance);
     }, 50);
 }
 
-// 🔥 重要修復：確保瀏覽器發音包已加載
 if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = () => {
         console.log("🔊 系統語音包已就緒");
     };
+}
+
+// ==========================================
+// 💥 RPG 飄字特效引擎
+// ==========================================
+function showFloatingText(text, color = "#f1c40f") {
+    const floatEl = document.createElement('div');
+    floatEl.className = 'floating-text';
+    floatEl.innerText = text;
+    floatEl.style.color = color;
+    
+    // 設定在畫面正中央偏上產生
+    floatEl.style.left = '50%';
+    floatEl.style.top = '40%';
+    floatEl.style.transform = 'translate(-50%, -50%)';
+    
+    document.body.appendChild(floatEl);
+    
+    // 2.5秒動畫結束後自動清理垃圾
+    setTimeout(() => {
+        floatEl.remove();
+    }, 2500);
 }
 loadAssets();
