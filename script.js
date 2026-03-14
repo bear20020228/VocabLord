@@ -918,7 +918,7 @@ function switchTab(tabName) {
 }
 
 // ==========================================
-// 🔊 單字發音系統 (高音質字典原音 + 系統備用雙防護版)
+// 🔊 單字發音系統 (終極穩定 + 系統相容版)
 // ==========================================
 function speakCurrentWord(speedMode = 'normal') {
     let displayElement = document.getElementById('word-display');
@@ -927,40 +927,49 @@ function speakCurrentWord(speedMode = 'normal') {
     let rawText = displayElement.innerText;
     if (rawText === "Ready?" || rawText.trim() === "") return;
 
-    // 清洗單字：去掉斜線與括號
+    // 清洗單字
     let cleanWord = rawText.split('/')[0].split('(')[0].trim();
     
-    // 🔥 改用開放的字典發音 API (type=2 為標準美式發音)，不會被伺服器阻擋！
-    let url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanWord)}&type=2`;
-    
-    let audio = new Audio(url);
-
-    // ⚡ 設定播放速度
-    if (speedMode === 'slow') {
-        audio.playbackRate = 0.5; // 🐢 慢速模式：精準半速，音調不變
-    } else {
-        audio.playbackRate = 1.0; // ▶ 正常語速
-    }
-
-    // 播放聲音
-    audio.play().catch(e => {
-        console.warn("字典音檔載入失敗，啟用備用系統發音機制...", e);
-        // 🛡️ 防呆機制：如果遇到極度冷門字或網路異常，自動退回系統語音，保證有聲音
-        fallbackToSystemTTS(cleanWord, speedMode);
-    });
-}
-
-// 🛡️ 備用系統發音函數 (不需修改)
-function fallbackToSystemTTS(word, speedMode) {
     if (!('speechSynthesis' in window)) {
-        return showToast("⚠️ 無法播放發音，請檢查網路連線", "error");
+        return showToast("⚠️ 您的瀏覽器不支援發音", "error");
     }
-    window.speechSynthesis.cancel(); 
+
+    // 1. 強制重置語音引擎 (解決 iOS/Chrome 卡死關鍵)
+    window.speechSynthesis.cancel();
+
+    // 2. 使用 Timeout 確保 cancel 完全執行完畢後再播放
     setTimeout(() => {
-        let utterance = new SpeechSynthesisUtterance(word);
-        utterance.lang = 'en-US'; 
-        utterance.rate = (speedMode === 'slow') ? 0.4 : 0.85; 
+        let utterance = new SpeechSynthesisUtterance(cleanWord);
+        utterance.lang = 'en-US';
+
+        // 🎤 語速設定
+        if (speedMode === 'slow') {
+            utterance.rate = 0.4; // 慢速
+            utterance.pitch = 1.0;
+        } else {
+            utterance.rate = 0.85; // 正常
+            utterance.pitch = 1.1; 
+        }
+
+        // 🎤 尋找高質量語音包 (這段一定要在 speak 之前)
+        let voices = window.speechSynthesis.getVoices();
+        let bestVoice = voices.find(v => 
+            v.name.includes('Google US English') || 
+            v.name.includes('Samantha') || 
+            v.name.includes('Aria')
+        ) || voices.find(v => v.lang.includes('en-US'));
+
+        if (bestVoice) utterance.voice = bestVoice;
+
+        // 3. 正式播放
         window.speechSynthesis.speak(utterance);
     }, 50);
+}
+
+// 🔥 重要修復：確保瀏覽器發音包已加載
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        console.log("🔊 系統語音包已就緒");
+    };
 }
 loadAssets();
