@@ -37,7 +37,7 @@
         <div id="marquee-container">
             <img src="assets/Characters/Pig_Right.png" id="marquee-pig" onerror="this.style.display='none'">
             <div class="marquee-scroll">
-                <span id="marquee-msg">🎮 【生態園區】神豬、我的刀盾、比比拉布 會同時在農場巡邏！</span>
+                <span id="marquee-msg">🎮 【系統提示】連對 10 題觸發🔥字源學狂熱！在「Level 5-6 高級難度」達成 50 連勝，即可掉落傳說神物📜【改名卷軸】，自訂專屬勇者與寵物名稱！</span>
             </div>
         </div>
 
@@ -46,11 +46,11 @@
                 <div class="user-header">
                     <div class="pig-avatar-container" onclick="togglePanel('pet')">
                         <img src="assets/Characters/Pig_Down.png" id="pig-img" onerror="this.style.display='none'">
-                        <div class="switch-icon-hint">🔄</div>
+                        <div class="switch-icon-hint">更換寵物</div>
                     </div>
                     <div class="user-info">
                         <div class="lv-badge"><span id="player-name-display">載入中...</span> <span id="pro-badge" class="hidden">PRO</span></div>
-                        <div class="money">💰 <span id="coin-count">100</span> | Lv.<span id="pig-lv">1</span></div>
+                        <div class="money">💰 <span id="coin-count">100</span> | Lv.<span id="pig-lv">1</span> <span id="combo-badge" class="hidden" style="color:#e74c3c; font-size:0.8em; margin-left:8px; background:#fef5e7; padding:2px 8px; border-radius:12px; border:1px solid #f39c12;">🔥 <span id="combo-count">0</span> 連勝</span></div>
                         <div class="exp-bar-bg"><div id="exp-fill"></div></div>
                     </div>
                 </div>
@@ -82,7 +82,7 @@
                 <div id="pro-upgrade-btn" onclick="showPaywall('解鎖完整 7000 單字庫與 VIP 寵物招募權限！')">💎 升級專業版</div>
 
                 <div id="ui-overlays">
-                    <div class="overlay-btn" onclick="openGraduatedArea()" style="background: #8e44ad; border: 2px solid #732d91;">🎓 已畢業</div>
+                    <div class="overlay-btn" onclick="openGraduatedArea()" style="background: #f39c12; border: 2px solid #d35400;">🌟 單字圖鑑</div>
                     <div class="overlay-btn" onclick="openReviewArea()" style="background: #c0392b; border: 2px solid #922b21;">📖 錯題本</div>
                     <div class="overlay-btn" onclick="togglePanel('inventory')">🎒 背包</div>
                     <div class="overlay-btn" onclick="togglePanel('shop')">🛒 商城</div>
@@ -111,12 +111,14 @@
                 </div>
 
                 <div id="graduated-screen" class="hidden">
-                    <div class="review-header" style="background: #8e44ad;">
-                        <h2>🎓 已畢業單字區</h2>
+                    <div class="review-header" style="background: #f39c12;">
+                        <h2>🌟 單字大圖鑑</h2>
                         <button class="close-review-btn" onclick="closeGraduatedArea()">返回 ✖</button>
                     </div>
-                    <div class="review-info" style="background: #f4ecf7; color: #8e44ad; border-bottom: 2px solid #9b59b6;">這些是你連續答對 5 次、完全掌握的單字！</div>
-                    <div id="graduated-list"></div>
+                    <div class="review-info" style="background: #fef5e7; color: #d35400; border-bottom: 3px solid #f39c12;">
+                        收集星星！連對 1 次🥉，連對 3 次🥈，連對 5 次🥇(畢業)
+                    </div>
+                    <div id="graduated-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; align-content: start; overflow-y: auto; flex: 1;"></div>
                 </div>
             </main>
        </div> 

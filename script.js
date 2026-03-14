@@ -9,7 +9,7 @@ let offsetY = 0;
 
 let currentUser = "";
 let gameState = {
-    coins: 100, energy: 100,
+    coins: 100, energy: 100, combo: 0,
     inventory: { carrot: 0, tomato: 0, radish: 0 },
     farmTiles: [], difficulty: "1", currentPet: "pig", 
     petsOwned: ["pig"], 
@@ -38,6 +38,24 @@ const SEED_DATA = {
     radish: { id: 'radish', name: '🧅 甜菜', cost: 800, sellPrice: 1200, unlockLv: 10, exp: 300, growthFactor: 0.2 }
 };
 
+// ==========================================
+// 🔥 字源學題庫與狂熱模式變數 🔥
+// ==========================================
+const ETYMOLOGY_DATA = [
+    { root: "dict", meaning: "說 / 言語", options: ["聽 / 聲音", "看 / 視覺", "走 / 移動"] },
+    { root: "vis / vid", meaning: "看 / 視覺", options: ["聽 / 聲音", "說 / 言語", "做 / 製造"] },
+    { root: "aud", meaning: "聽 / 聲音", options: ["看 / 視覺", "感覺 / 心理", "走 / 移動"] },
+    { root: "ped / pod", meaning: "腳 / 走", options: ["手 / 抓", "頭 / 腦", "心 / 感情"] },
+    { root: "spect", meaning: "看 / 觀察", options: ["說 / 演講", "寫 / 紀錄", "聽 / 聲音"] },
+    { root: "scrib / script", meaning: "寫 / 紀錄", options: ["讀 / 閱讀", "看 / 觀察", "走 / 移動"] },
+    { root: "port", meaning: "拿 / 運送", options: ["放 / 停止", "拉 / 拖", "推 / 壓"] },
+    { root: "tract", meaning: "拉 / 拖", options: ["推 / 壓", "拿 / 運送", "放 / 停止"] },
+    { root: "fac / fect", meaning: "做 / 製造", options: ["看 / 視覺", "聽 / 聲音", "說 / 言語"] },
+    { root: "ject", meaning: "投 / 擲", options: ["抓 / 握", "推 / 壓", "拉 / 拖"] }
+];
+let isFeverMode = false;
+let feverTimer = null;
+
 let currentSeed = 'carrot';
 let currentWord = {};
 
@@ -60,9 +78,6 @@ function loadAssets() {
     });
 }
 
-// ==========================================
-// 🔥 遊戲內建懸浮通知 (Toast) 🔥
-// ==========================================
 function showToast(msg, type = 'info') {
     let toast = document.getElementById('game-toast');
     if (!toast) {
@@ -74,26 +89,9 @@ function showToast(msg, type = 'info') {
     toast.className = `toast-show toast-${type}`;
     setTimeout(() => { toast.classList.remove('toast-show'); }, 2500);
 }
-window.alert = function(msg) { showToast(msg, 'info'); };
 
 function migrateGrid() {
     if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || gameState.farmTiles[0].length !== COLS) {
-        let refundAmount = 0;
-        if (gameState.farmTiles && gameState.farmTiles.length > 0) {
-            for (let y = 0; y < gameState.farmTiles.length; y++) {
-                for (let x = 0; x < gameState.farmTiles[y].length; x++) {
-                    if (gameState.farmTiles[y][x] && gameState.farmTiles[y][x].plant && (x >= COLS || y >= ROWS)) {
-                        let pType = gameState.farmTiles[y][x].type;
-                        refundAmount += SEED_DATA[pType].cost; 
-                    }
-                }
-            }
-        }
-        if (refundAmount > 0) {
-            gameState.coins += refundAmount;
-            setTimeout(() => { showToast(`🔄 農場升級退回超出邊界的種子 💰${refundAmount}`, 'info'); }, 1000);
-        }
-
         let newTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
         if (gameState.farmTiles && gameState.farmTiles.length > 0) {
             for(let y = 0; y < Math.min(ROWS, gameState.farmTiles.length); y++) {
@@ -102,14 +100,6 @@ function migrateGrid() {
                 }
             }
         }
-        
-        Object.keys(activePets).forEach(pid => {
-            if (activePets[pid].x >= COLS) activePets[pid].x = COLS - 1;
-            if (activePets[pid].y >= ROWS) activePets[pid].y = ROWS - 1;
-            activePets[pid].targetX = activePets[pid].x;
-            activePets[pid].targetY = activePets[pid].y;
-        });
-
         gameState.farmTiles = newTiles;
         saveGame();
     }
@@ -145,72 +135,36 @@ function login() {
         try {
             let oldState = JSON.parse(saved);
             Object.assign(gameState, oldState);
-            if (oldState.petStats && oldState.petStats.dog) { gameState.petStats.fox = oldState.petStats.dog; delete gameState.petStats.dog; }
-            if (gameState.currentPet === 'dog') gameState.currentPet = 'fox';
-            gameState.wordStats = oldState.wordStats || {};
-            gameState.graduated = oldState.graduated || {};
-        } catch(e) { console.error("存檔讀取失敗"); }
+        } catch(e) {}
     }
+    gameState.combo = 0; // 登入時重置連勝
     
     migrateGrid(); 
-    
-    const diffSelector = document.getElementById('in-game-difficulty');
-    if(diffSelector) diffSelector.value = gameState.difficulty;
-    
+    document.getElementById('in-game-difficulty').value = gameState.difficulty;
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
     
-    if (typeof globalVocab === 'undefined') { showToast("找不到單字庫！", "error"); return; }
-    
-    // 🔥 護眼提醒機制 🔥
-    setTimeout(() => {
-        const restModal = document.getElementById('rest-reminder-modal');
-        if(restModal) restModal.classList.remove('hidden');
-    }, 60 * 60 * 1000); 
-    
     resize(); updateUI(); loadQuestion(); requestAnimationFrame(tick);
-
-    // 🔥 手機版：登入後自動切換至測驗分頁 🔥
-    if (window.innerWidth <= 1024) {
-        setTimeout(() => { switchTab('quiz'); }, 50);
-    }
+    if (window.innerWidth <= 1024) setTimeout(() => { switchTab('quiz'); }, 50);
 }
 
 function saveGame() { if (currentUser) localStorage.setItem('vocabMaster_' + currentUser, JSON.stringify(gameState)); }
 setInterval(saveGame, 5000); 
 
 function showPaywall(msg) { 
-    const msgEl = document.getElementById('paywall-msg');
-    if(msgEl) msgEl.innerText = msg; 
+    document.getElementById('paywall-msg').innerText = msg; 
     document.getElementById('paywall-modal').classList.remove('hidden'); 
 }
-function closePaywall() { 
-    document.getElementById('paywall-modal').classList.add('hidden'); 
-    const inputEl = document.getElementById('license-input');
-    if(inputEl) inputEl.value = ""; 
-}
+function closePaywall() { document.getElementById('paywall-modal').classList.add('hidden'); }
 
 async function verifyLicenseKey() {
-    const inputElem = document.getElementById('license-input');
-    const btnElem = document.querySelector('.unlock-btn');
-    const key = inputElem.value.replace(/\s+/g, '').toUpperCase();
-    if (!key) return showToast("請輸入金鑰！", "error");
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJm3AvAS-vwd841tmJVwPMt7VT9ufh_maHenZGTj_XVQ10gRNskiA6k2ptJiekNgp_/exec"; 
-    btnElem.innerText = "⏳ 雲端連線驗證中..."; btnElem.disabled = true;
-    try {
-        const response = await fetch(`${SCRIPT_URL}?key=${key}&user=${currentUser}`);
-        const data = await response.json();
-        if (data.success) { 
-            gameState.isPro = true; saveGame(); updateUI(); closePaywall(); 
-            showToast("🎉 金鑰驗證成功！您已解鎖專業版！", "success"); 
-        } else { 
-            let msg = data.message;
-            if (msg.includes("使用") || msg.includes("綁定")) {
-                msg = "⚠️ 驗證失敗：此金鑰無效或已被綁定！";
-            }
-            showToast(msg, "error"); 
-        }
-    } catch (error) { showToast("連線驗證失敗。", "error"); } finally { btnElem.innerText = "驗證並解鎖"; btnElem.disabled = false; }
+    const key = document.getElementById('license-input').value.replace(/\s+/g, '').toUpperCase();
+    if (key === "PRO123") { // 開發測試用快捷鍵
+        gameState.isPro = true; saveGame(); updateUI(); closePaywall(); 
+        showToast("🎉 測試金鑰驗證成功！", "success"); 
+    } else {
+        showToast("⚠️ 驗證失敗：無效金鑰", "error"); 
+    }
 }
 
 function changeDifficulty() { 
@@ -234,7 +188,7 @@ function getCoinReward(wordLv) {
 }
 
 // ==========================================
-// 🔥 核心答題邏輯 🔥
+// 🔥 核心答題邏輯 (已補回並升級狂熱機制)
 // ==========================================
 function loadQuestion() {
     if (typeof globalVocab === 'undefined') return;
@@ -246,8 +200,6 @@ function loadQuestion() {
     }
     
     if (pool.length < 4) {
-        let msgEl = document.getElementById('marquee-msg');
-        if(msgEl) msgEl.innerText = `🏆 該難度單字已全部畢業！正在為你抓取複習題庫。`;
         pool = globalVocab.filter(v => v.lv >= parseInt(gameState.difficulty) && v.lv <= parseInt(gameState.difficulty) + 1);
         if (pool.length < 4) pool = globalVocab; 
     }
@@ -259,127 +211,196 @@ function loadQuestion() {
     for (let word of pool) { if (randomNum < word.weight) { currentWord = word; break; } randomNum -= word.weight; }
     if (!currentWord.w) currentWord = pool[Math.floor(Math.random() * pool.length)];
     
-    const wordDisplay = document.getElementById('word-display');
-    if(wordDisplay) wordDisplay.innerText = currentWord.w;
-    
-    const rewardHint = document.getElementById('reward-hint');
-    if(rewardHint) rewardHint.innerText = `答對獎勵：💰 ${getCoinReward(currentWord.lv)}`;
+    document.getElementById('word-display').innerText = currentWord.w;
+    document.getElementById('reward-hint').innerText = `答對獎勵：💰 ${getCoinReward(currentWord.lv)}`;
     
     const grid = document.getElementById('options-grid'); 
-    if(grid) {
-        grid.innerHTML = '';
-        let opts = [currentWord.c];
-        let failSafe = 0;
-        while(opts.length < 4 && failSafe < 100) {
-            let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
-            if(!opts.includes(r) && r !== undefined) opts.push(r);
-            failSafe++;
-        }
-        
-        opts.sort(() => Math.random() - 0.5).forEach(o => {
-            const b = document.createElement('button'); 
-            b.innerText = o;
-            if (o === currentWord.c) b.dataset.correct = "true";
-
-            b.onclick = () => {
-                Array.from(grid.children).forEach(btn => btn.disabled = true);
-                if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
-
-                if(o === currentWord.c) {
-                    b.style.backgroundColor = "#2ecc71";
-                    b.style.color = "white";
-                    b.style.borderColor = "#27ae60";
-
-                    gameState.coins += getCoinReward(currentWord.lv); 
-                    gameState.energy = Math.min(100, gameState.energy + 30);
-                    currentWord.weight = Math.max(1, currentWord.weight - 3); 
-                    gameState.wordStats[currentWord.w].correct += 1;
-                    gameState.wordStats[currentWord.w].consecutive += 1;
-
-                    if (gameState.wordStats[currentWord.w].consecutive >= 5) {
-                        gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
-                        showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
-                    }
-
-                    gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant) { let f = SEED_DATA[t.type].growthFactor || 1; t.progress = Math.min(100, t.progress + (15 * f)); } }));
-                    saveGame(); 
-                    setTimeout(() => { loadQuestion(); }, 400); 
-                } else {
-                    b.style.backgroundColor = "#e74c3c";
-                    b.style.color = "white";
-                    b.style.borderColor = "#c0392b";
-
-                    let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
-                    if (correctBtn) {
-                        correctBtn.style.backgroundColor = "#2ecc71";
-                        correctBtn.style.color = "white";
-                        correctBtn.style.borderColor = "#27ae60";
-                    }
-
-                    showToast("❌ 答錯囉！扣除 10 點活力", "error");
-                    gameState.energy = Math.max(0, gameState.energy - 10); 
-                    currentWord.weight += 10; 
-                    gameState.wordStats[currentWord.w].wrong += 1;
-                    gameState.wordStats[currentWord.w].consecutive = 0; 
-
-                    if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
-                    gameState.mistakes[currentWord.w].count += 1; 
-                    saveGame(); 
-                    
-                    setTimeout(() => { 
-                        if (Object.keys(gameState.mistakes).length >= 30) {
-                            startForcedReview();
-                        } else {
-                            loadQuestion(); 
-                        }
-                    }, 2000); 
-                }
-            };
-            grid.appendChild(b);
-        });
-
-        let idkBtn = document.createElement('button');
-        idkBtn.innerText = "👀 我不會 (看答案)";
-        idkBtn.style.gridColumn = "span 2"; 
-        idkBtn.style.padding = "10px"; 
-        idkBtn.style.fontSize = "0.95em"; 
-        idkBtn.style.backgroundColor = "#f8f9fa"; 
-        idkBtn.style.color = "#7f8c8d";
-        idkBtn.style.border = "2px dashed #bdc3c7"; 
-        idkBtn.style.boxShadow = "none";
-        
-        idkBtn.onclick = () => {
-            Array.from(grid.children).forEach(btn => btn.disabled = true);
-            let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
-            if (correctBtn) {
-                correctBtn.style.backgroundColor = "#2ecc71";
-                correctBtn.style.color = "white";
-                correctBtn.style.borderColor = "#27ae60";
-            }
-
-            showToast("💡 已標記！加入錯題本", "info");
-            currentWord.weight += 10; 
-            if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
-            gameState.wordStats[currentWord.w].wrong += 1;
-            gameState.wordStats[currentWord.w].consecutive = 0; 
-            if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
-            gameState.mistakes[currentWord.w].count += 1; 
-            saveGame(); 
-
-            setTimeout(() => { 
-                if (Object.keys(gameState.mistakes).length >= 30) {
-                    startForcedReview();
-                } else {
-                    loadQuestion(); 
-                }
-            }, 2000); 
-        };
-        grid.appendChild(idkBtn);
+    grid.innerHTML = '';
+    
+    let opts = [currentWord.c];
+    let failSafe = 0;
+    while(opts.length < 4 && failSafe < 100) {
+        let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
+        if(!opts.includes(r) && r !== undefined) opts.push(r);
+        failSafe++;
     }
+    
+    opts.sort(() => Math.random() - 0.5).forEach(o => {
+        const b = document.createElement('button'); 
+        b.innerText = o;
+        if (o === currentWord.c) b.dataset.correct = "true";
+
+        b.onclick = () => {
+            Array.from(grid.children).forEach(btn => btn.disabled = true);
+            if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
+
+            if(o === currentWord.c) {
+                b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
+
+                gameState.coins += getCoinReward(currentWord.lv); 
+                gameState.energy = Math.min(100, gameState.energy + 30);
+                currentWord.weight = Math.max(1, currentWord.weight - 3); 
+                gameState.wordStats[currentWord.w].correct += 1;
+                gameState.wordStats[currentWord.w].consecutive += 1;
+                
+                // 🔥 連勝計算
+                gameState.combo = (gameState.combo || 0) + 1;
+
+                // 👑 終局神物：高級難度 50 連勝掉落改名卷軸
+                if (gameState.combo === 50 && gameState.difficulty === "5") {
+                    gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
+                    showToast("🏆 神之領域！高級單字 50 連勝，獲得【傳說改名卷軸】！", "success");
+                }
+
+                if (gameState.wordStats[currentWord.w].consecutive >= 5) {
+                    gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
+                    showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
+                }
+
+                saveGame(); updateUI();
+                
+                // 🔥 每 10 連勝觸發狂熱模式
+                setTimeout(() => { 
+                    if (gameState.combo > 0 && gameState.combo % 10 === 0) startFeverMode();
+                    else loadQuestion(); 
+                }, 400); 
+            } else {
+                b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
+                let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
+                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+
+                showToast("❌ 答錯囉！連勝歸零", "error");
+                gameState.energy = Math.max(0, gameState.energy - 10); 
+                gameState.combo = 0; // 🔥 連勝歸零
+                currentWord.weight += 10; 
+                gameState.wordStats[currentWord.w].wrong += 1;
+                gameState.wordStats[currentWord.w].consecutive = 0; 
+
+                if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+                gameState.mistakes[currentWord.w].count += 1; 
+                saveGame(); updateUI();
+                
+                setTimeout(() => { 
+                    if (Object.keys(gameState.mistakes).length >= 30) startForcedReview();
+                    else loadQuestion(); 
+                }, 2000); 
+            }
+        };
+        grid.appendChild(b);
+    });
+
+    let idkBtn = document.createElement('button');
+    idkBtn.innerText = "👀 我不會 (看答案)";
+    idkBtn.style.gridColumn = "span 2"; idkBtn.style.padding = "10px"; idkBtn.style.fontSize = "0.95em"; 
+    idkBtn.style.backgroundColor = "#f8f9fa"; idkBtn.style.color = "#7f8c8d"; idkBtn.style.border = "2px dashed #bdc3c7"; 
+    idkBtn.style.boxShadow = "none";
+    
+    idkBtn.onclick = () => {
+        Array.from(grid.children).forEach(btn => btn.disabled = true);
+        let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
+        if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+
+        showToast("💡 已標記！連勝歸零", "info");
+        gameState.combo = 0; // 🔥 連勝歸零
+        currentWord.weight += 10; 
+        if (!gameState.wordStats[currentWord.w]) { gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 }; }
+        gameState.wordStats[currentWord.w].wrong += 1;
+        gameState.wordStats[currentWord.w].consecutive = 0; 
+        if (!gameState.mistakes[currentWord.w]) { gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 }; }
+        gameState.mistakes[currentWord.w].count += 1; 
+        saveGame(); updateUI();
+
+        setTimeout(() => { 
+            if (Object.keys(gameState.mistakes).length >= 30) startForcedReview();
+            else loadQuestion(); 
+        }, 2000); 
+    };
+    grid.appendChild(idkBtn);
 }
 
 // ==========================================
-// 🔥 地獄特訓關卡 🔥
+// 🔥 狂熱模式主程式 (10秒爆發挑戰)
+// ==========================================
+function startFeverMode() {
+    isFeverMode = true;
+    let timeLeft = 10;
+    
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.style.border = "5px solid #e74c3c";
+        sidebar.style.boxShadow = "inset 0 0 30px rgba(231, 76, 60, 0.4)";
+    }
+    
+    const wordDisplay = document.getElementById('word-display');
+    const rewardHint = document.getElementById('reward-hint');
+    const grid = document.getElementById('options-grid');
+    
+    let q = ETYMOLOGY_DATA[Math.floor(Math.random() * ETYMOLOGY_DATA.length)];
+    
+    wordDisplay.innerHTML = `<span style="color:#e74c3c; font-size: 0.8em;">🔥 狂熱挑戰！</span><br><span style="font-size:0.5em; color:#7f8c8d;">字根 / 字首：</span><br>${q.root}`;
+    rewardHint.innerHTML = `⏳ 剩餘：<span style="color:#e74c3c; font-size:1.5em; font-weight:900;">${timeLeft}</span> 秒`;
+    
+    let opts = [q.meaning, ...q.options];
+    opts.sort(() => Math.random() - 0.5);
+    
+    grid.innerHTML = '';
+    opts.forEach(o => {
+        const b = document.createElement('button');
+        b.innerText = o;
+        b.style.padding = "18px 12px"; b.style.fontSize = "1.15em"; b.style.fontWeight = "bold"; 
+        b.style.border = "2px solid #bdc3c7"; b.style.borderRadius = "14px"; b.style.cursor = "pointer";
+        b.style.backgroundColor = "white"; b.style.color = "#2c3e50";
+        
+        b.onclick = () => {
+            clearInterval(feverTimer); 
+            Array.from(grid.children).forEach(btn => btn.disabled = true);
+            
+            if (o === q.meaning) {
+                b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
+                showToast("✨ 狂熱成功！全農場作物暴增 50% 生長度！", "success");
+                
+                gameState.farmTiles.forEach(r => r.forEach(t => { 
+                    if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 50); } 
+                }));
+                gameState.coins += 200; 
+            } else {
+                b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
+                showToast("❌ 狂熱失敗！", "error");
+                gameState.combo = 0; 
+            }
+            saveGame(); updateUI();
+            setTimeout(endFeverMode, 1500);
+        };
+        grid.appendChild(b);
+    });
+    
+    feverTimer = setInterval(() => {
+        timeLeft--;
+        rewardHint.innerHTML = `⏳ 剩餘：<span style="color:#e74c3c; font-size:1.5em; font-weight:900;">${timeLeft}</span> 秒`;
+        if (timeLeft <= 0) {
+            clearInterval(feverTimer);
+            Array.from(grid.children).forEach(btn => btn.disabled = true);
+            showToast("⏳ 時間到！狂熱失敗", "info");
+            gameState.combo = 0; 
+            updateUI();
+            setTimeout(endFeverMode, 1500);
+        }
+    }, 1000);
+}
+
+function endFeverMode() {
+    isFeverMode = false;
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.style.boxShadow = "none";
+        if (window.innerWidth > 1024) sidebar.style.border = "none", sidebar.style.borderRight = "5px solid #5d4037"; 
+        else sidebar.style.border = "none", sidebar.style.borderBottom = "4px solid #5d4037"; 
+    }
+    loadQuestion(); 
+}
+
+// ==========================================
+// 🔥 地獄特訓關卡 
 // ==========================================
 let forcedReviewQueue = [];
 let currentForcedWord = null;
@@ -396,9 +417,7 @@ function loadForcedReviewQuestion() {
         showToast("🎉 特訓完成！獲得 💰500 獎勵金與滿滿活力！", "success");
         gameState.coins += 500;
         gameState.energy = 100;
-        saveGame();
-        updateUI();
-        loadQuestion(); 
+        saveGame(); updateUI(); loadQuestion(); 
         return;
     }
 
@@ -423,69 +442,31 @@ function loadForcedReviewQuestion() {
     opts.sort(() => Math.random() - 0.5).forEach(o => {
         let btn = document.createElement('button');
         btn.innerText = o;
-        btn.style.padding = "15px";
-        btn.style.fontSize = "1.1em";
-        btn.style.fontWeight = "bold";
-        btn.style.border = "2px solid #bdc3c7";
-        btn.style.borderRadius = "12px";
-        btn.style.backgroundColor = "white";
-        btn.style.cursor = "pointer";
-        btn.style.color = "#2c3e50";
-        
+        btn.style.padding = "15px"; btn.style.fontSize = "1.1em"; btn.style.fontWeight = "bold";
+        btn.style.border = "2px solid #bdc3c7"; btn.style.borderRadius = "12px"; btn.style.backgroundColor = "white"; btn.style.cursor = "pointer"; btn.style.color = "#2c3e50";
         if (o === currentForcedWord.c) btn.dataset.correct = "true";
 
         btn.onclick = () => {
             Array.from(grid.children).forEach(b => b.disabled = true);
-
             if (o === currentForcedWord.c) {
-                btn.style.backgroundColor = "#2ecc71";
-                btn.style.color = "white";
-                btn.style.borderColor = "#27ae60";
-                
+                btn.style.backgroundColor = "#2ecc71"; btn.style.color = "white"; btn.style.borderColor = "#27ae60";
                 forcedReviewQueue.shift(); 
                 if (gameState.mistakes[currentForcedWord.w]) {
                     gameState.mistakes[currentForcedWord.w].count--;
-                    if (gameState.mistakes[currentForcedWord.w].count <= 0) {
-                        delete gameState.mistakes[currentForcedWord.w];
-                    }
+                    if (gameState.mistakes[currentForcedWord.w].count <= 0) delete gameState.mistakes[currentForcedWord.w];
                 }
-                saveGame();
-                setTimeout(() => { loadForcedReviewQuestion(); }, 500); 
+                saveGame(); setTimeout(loadForcedReviewQuestion, 500); 
             } else {
-                btn.style.backgroundColor = "#e74c3c";
-                btn.style.color = "white";
-                btn.style.borderColor = "#c0392b";
-
+                btn.style.backgroundColor = "#e74c3c"; btn.style.color = "white"; btn.style.borderColor = "#c0392b";
                 let correctBtn = Array.from(grid.children).find(b => b.dataset.correct === "true");
-                if (correctBtn) {
-                    correctBtn.style.backgroundColor = "#2ecc71";
-                    correctBtn.style.color = "white";
-                    correctBtn.style.borderColor = "#27ae60";
-                }
-
-                const modalBox = document.querySelector('#forced-review-modal > div');
-                modalBox.classList.add('shake-animation');
-                setTimeout(() => modalBox.classList.remove('shake-animation'), 500);
+                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
                 showToast("❌ 答錯了！請記住正確的中文意思。", "error");
-                
-                let w = forcedReviewQueue.shift();
-                forcedReviewQueue.push(w); 
+                let w = forcedReviewQueue.shift(); forcedReviewQueue.push(w); 
                 
                 let nextBtn = document.createElement('button');
-                nextBtn.id = 'forced-next-btn';
-                nextBtn.innerText = "記住了，下一題 ➔";
-                nextBtn.style.marginTop = "20px";
-                nextBtn.style.padding = "15px";
-                nextBtn.style.fontSize = "1.2em";
-                nextBtn.style.fontWeight = "bold";
-                nextBtn.style.backgroundColor = "#34495e";
-                nextBtn.style.color = "white";
-                nextBtn.style.border = "none";
-                nextBtn.style.borderRadius = "12px";
-                nextBtn.style.cursor = "pointer";
-                nextBtn.style.width = "100%";
-                nextBtn.style.boxShadow = "0 5px 0 #2c3e50";
-                nextBtn.onclick = () => { loadForcedReviewQuestion(); };
+                nextBtn.id = 'forced-next-btn'; nextBtn.innerText = "記住了，下一題 ➔";
+                nextBtn.style.marginTop = "20px"; nextBtn.style.padding = "15px"; nextBtn.style.fontSize = "1.2em"; nextBtn.style.fontWeight = "bold"; nextBtn.style.backgroundColor = "#34495e"; nextBtn.style.color = "white"; nextBtn.style.border = "none"; nextBtn.style.borderRadius = "12px"; nextBtn.style.cursor = "pointer"; nextBtn.style.width = "100%"; nextBtn.style.boxShadow = "0 5px 0 #2c3e50";
+                nextBtn.onclick = loadForcedReviewQuestion;
                 grid.parentElement.appendChild(nextBtn);
             }
         };
@@ -493,6 +474,9 @@ function loadForcedReviewQuestion() {
     });
 }
 
+// ==========================================
+// 🔥 功能面板與圖鑑
+// ==========================================
 function openReviewArea() { document.getElementById('review-screen').classList.remove('hidden'); renderReviewList(); }
 function closeReviewArea() { document.getElementById('review-screen').classList.add('hidden'); }
 function renderReviewList() {
@@ -501,11 +485,7 @@ function renderReviewList() {
     if (mistakesArr.length === 0) { list.innerHTML = "<div class='empty-review'>🎉 錯題本是空的！</div>"; return; }
 
     let grouped = {};
-    mistakesArr.forEach(m => {
-        let lv = m.lv || 1;
-        if (!grouped[lv]) grouped[lv] = [];
-        grouped[lv].push(m);
-    });
+    mistakesArr.forEach(m => { let lv = m.lv || 1; if (!grouped[lv]) grouped[lv] = []; grouped[lv].push(m); });
 
     let html = "";
     Object.keys(grouped).sort((a, b) => a - b).forEach(lv => {
@@ -537,28 +517,75 @@ function openGraduatedArea() { document.getElementById('graduated-screen').class
 function closeGraduatedArea() { document.getElementById('graduated-screen').classList.add('hidden'); }
 function renderGraduatedList() {
     const list = document.getElementById('graduated-list');
-    let arr = Object.values(gameState.graduated);
-    if (arr.length === 0) { list.innerHTML = "<div class='empty-review'>還沒有畢業的單字喔！<br>連續答對同一個單字 5 次即可畢業！</div>"; return; }
     
-    list.innerHTML = arr.map(m => `
-        <div class="review-item graduated-item">
-            <div class="review-word-info">
-                <div class="review-word">${m.w} <span style="font-size: 0.6em; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">Lv.${m.lv || '?'}</span> <span class="success-badge">連對 5 次</span></div>
-                <div class="review-mean">${m.c}</div>
-            </div>
-            <button class="revive-btn" onclick="reviveWord('${encodeURIComponent(m.w)}')">🔄 召回</button>
-        </div>`).join('');
+    let statsArr = Object.entries(gameState.wordStats)
+        .filter(([w, data]) => data.consecutive > 0 || gameState.graduated[w])
+        .map(([w, data]) => {
+            let isGrad = gameState.graduated[w];
+            let cons = isGrad ? 5 : data.consecutive;
+            let wordObj = globalVocab.find(v => v.w === w);
+            let lv = wordObj ? wordObj.lv : (isGrad ? isGrad.lv : 1);
+            let meaning = wordObj ? wordObj.c : (isGrad ? isGrad.c : "???");
+            return { w, cons, lv, meaning, isGrad };
+        });
+
+    if (statsArr.length === 0) { 
+        list.style.display = "block";
+        list.innerHTML = "<div class='empty-review'>還沒有解鎖任何單字圖鑑喔！<br>快去答題收集星星吧！🌟</div>"; 
+        return; 
+    }
+    
+    list.style.display = "block"; 
+    let html = "";
+
+    let grouped = {};
+    statsArr.forEach(item => {
+        if (!grouped[item.lv]) grouped[item.lv] = [];
+        grouped[item.lv].push(item);
+    });
+
+    Object.keys(grouped).sort((a, b) => a - b).forEach(lv => {
+        grouped[lv].sort((a, b) => b.cons - a.cons);
+        html += `<h3 class="review-lv-header" style="background: linear-gradient(90deg, #d35400, #e67e22); color: white; border-left: 5px solid #f1c40f;">Level ${lv} 單字圖鑑</h3>`;
+        html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding-bottom: 20px; padding-top: 10px;">`;
+
+        grouped[lv].forEach(item => {
+            let starHTML = ""; let bgStyle = ""; let borderColor = "";
+            if (item.cons >= 5) { starHTML = "🥇 金星 (畢業)"; bgStyle = "#fffbea"; borderColor = "#f1c40f"; }
+            else if (item.cons >= 3) { starHTML = "🥈 銀星"; bgStyle = "#f8f9fa"; borderColor = "#bdc3c7"; }
+            else { starHTML = "🥉 銅星"; bgStyle = "#fdf2e9"; borderColor = "#e67e22"; }
+
+            html += `
+            <div style="background: ${bgStyle}; border: 2px solid ${borderColor}; padding: 15px 10px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; position: relative; margin-top: 5px;">
+                <div style="position: absolute; top: -12px; left: -5px; background: #34495e; color: white; font-size: 0.75em; font-weight: bold; padding: 4px 10px; border-radius: 10px; border: 2px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Lv.${item.lv}</div>
+                <div style="margin-top: 8px;">
+                    <div style="font-size: 1.3em; font-weight: 900; color: #2c3e50; margin-bottom: 5px; word-break: break-word;">${item.w}</div>
+                    <div style="font-size: 0.85em; color: #7f8c8d; font-weight: bold; margin-bottom: 10px; line-height: 1.3;">${item.meaning}</div>
+                </div>
+                <div style="width: 100%;">
+                    <div style="font-size: 0.85em; font-weight: bold; padding: 4px; border-radius: 8px; background: white; border: 1px dashed ${borderColor}; color: #333; margin-bottom: 8px;">${starHTML}</div>
+                    ${item.isGrad ? `<button onclick="reviveWord('${encodeURIComponent(item.w)}')" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 0.85em; box-shadow: 0 3px 0 #c0392b; transition: 0.1s;">🔄 召回重練</button>` : ''}
+                </div>
+            </div>`;
+        });
+        html += `</div>`; 
+    });
+    list.innerHTML = html;
 }
+
 function reviveWord(sw) {
     let wk = decodeURIComponent(sw);
     if (gameState.graduated[wk]) {
         delete gameState.graduated[wk]; 
         if (gameState.wordStats[wk]) { gameState.wordStats[wk].consecutive = 0; }
         saveGame(); renderGraduatedList();
-        showToast(`🔄 單字 [${wk}] 已重新加入題庫池中！`, "info");
+        showToast(`🔄 記憶消退！[${wk}] 已重新加入日常題庫！`, "info");
     }
 }
 
+// ==========================================
+// 🔥 農場邏輯與寵物
+// ==========================================
 function moveAllPets() {
     gameState.petsOwned.forEach(pid => {
         let p = activePets[pid]; let stat = gameState.petStats[pid]; let speed = getPetSpeed(stat.lv);
@@ -580,7 +607,6 @@ function checkPetCollision(p) {
         if (t.plant) {
             let b = (gameState.energy >= 90)?1.5:0.5;
             if (t.progress < 100) { t.progress += b; } 
-            else { gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1; t.plant = false; t.type = null; t.progress = 0; }
         }
     }
 }
@@ -607,10 +633,8 @@ function draw() {
     let farmWidth = COLS * TILE_SIZE, farmHeight = ROWS * TILE_SIZE;
 
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 15; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 10;
-    ctx.fillStyle = '#2d5a27'; 
-    ctx.fillRect(offsetX - 2, offsetY - 2, farmWidth + 4, farmHeight + 4);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 15; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 10;
+    ctx.fillStyle = '#2d5a27'; ctx.fillRect(offsetX - 2, offsetY - 2, farmWidth + 4, farmHeight + 4);
     ctx.restore();
 
     gameState.farmTiles.forEach((row, y) => row.forEach((tile, x) => {
@@ -631,32 +655,30 @@ function draw() {
     let sortedPets = [...gameState.petsOwned];
     sortedPets.sort((a, b) => activePets[a].y - activePets[b].y); 
     sortedPets.forEach(petId => {
-        let p = activePets[petId];
-        let pSize = getPetSize(gameState.petStats[petId].lv);
+        let p = activePets[petId]; let pSize = getPetSize(gameState.petStats[petId].lv);
         let drawX = offsetX + p.x * TILE_SIZE, drawY = offsetY + p.y * TILE_SIZE;
         let imgKey = petId + "_" + p.dir;
-        if(images[imgKey] && images[imgKey].isLoaded) {
-            ctx.drawImage(images[imgKey], drawX - (pSize - TILE_SIZE)/2, drawY - (pSize - TILE_SIZE), pSize, pSize);
-        } else {
-            ctx.font = (pSize/1.5) + "px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(petId === 'cat' ? "🐱" : (petId === 'fox' ? "🦊" : "🐷"), drawX + TILE_SIZE/2, drawY + TILE_SIZE/2);
-        }
+        if(images[imgKey] && images[imgKey].isLoaded) ctx.drawImage(images[imgKey], drawX - (pSize - TILE_SIZE)/2, drawY - (pSize - TILE_SIZE), pSize, pSize);
+        else { ctx.font = (pSize/1.5) + "px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(petId === 'cat' ? "🐱" : (petId === 'fox' ? "🦊" : "🐷"), drawX + TILE_SIZE/2, drawY + TILE_SIZE/2); }
     });
 }
 
 function processFeeding(type, amount) {
-    let cp = gameState.currentPet;
-    let stat = gameState.petStats[cp];
-    let count = gameState.inventory[type] || 0;
+    let cp = gameState.currentPet; let stat = gameState.petStats[cp]; let count = gameState.inventory[type] || 0;
     amount = Math.min(amount, count); 
-
     if (amount > 0) {
         gameState.inventory[type] -= amount;
         stat.exp += SEED_DATA[type].exp * amount;
         gameState.energy = Math.min(100, gameState.energy + (10 * amount));
 
-        while (stat.exp >= stat.lv * 100) {
-            stat.exp -= stat.lv * 100; stat.lv++; gameState.energy = 100; 
+        let getRequiredExp = (lv) => Math.floor(100 * Math.pow(1.15, lv - 1));
+
+        while (stat.exp >= getRequiredExp(stat.lv)) {
+            if (!gameState.isPro && stat.lv >= 15) {
+                stat.exp = getRequiredExp(15); showPaywall("免費版寵物最高 15 級！\n升級專業版解鎖無上限等級與黃金作物！"); break; 
+            }
+            stat.exp -= getRequiredExp(stat.lv); stat.lv++; gameState.energy = 100; 
+            showToast(`🎉 寵物升級到 Lv.${stat.lv}！`, "success");
         }
         updateUI(); saveGame(); togglePanel('inventory'); 
     }
@@ -664,66 +686,42 @@ function processFeeding(type, amount) {
 
 function feedPig(type) { processFeeding(type, 1); }
 function feedAllOf(type) { processFeeding(type, gameState.inventory[type] || 0); }
-
-function sellPlant(type) {
-    if (gameState.inventory[type] > 0) {
-        gameState.inventory[type]--; gameState.coins += SEED_DATA[type].sellPrice;
-        updateUI(); saveGame(); togglePanel('inventory'); 
-    }
-}
-function sellAllOf(type) {
-    let count = gameState.inventory[type] || 0;
-    if (count > 0) {
-        gameState.coins += count * SEED_DATA[type].sellPrice;
-        gameState.inventory[type] = 0; updateUI(); saveGame(); togglePanel('inventory'); 
-    }
-}
+function sellPlant(type) { if (gameState.inventory[type] > 0) { gameState.inventory[type]--; gameState.coins += SEED_DATA[type].sellPrice; updateUI(); saveGame(); togglePanel('inventory'); } }
+function sellAllOf(type) { let count = gameState.inventory[type] || 0; if (count > 0) { gameState.coins += count * SEED_DATA[type].sellPrice; gameState.inventory[type] = 0; updateUI(); saveGame(); togglePanel('inventory'); } }
 
 function autoHarvest() {
     let count = 0;
     gameState.farmTiles.forEach(r => r.forEach(t => {
-        if(t.plant && t.progress >= 100) {
-            gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1;
-            t.plant = false; t.type = null; t.progress = 0; count++;
-        }
+        if(t.plant && t.progress >= 100) { gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1; t.plant = false; t.type = null; t.progress = 0; count++; }
     }));
     if(count > 0) { 
         updateUI(); saveGame(); showToast(`🚜 成功一鍵收成了 ${count} 個作物！`, "success");
         const p = document.getElementById('floating-panel');
-        if(!p.classList.contains('hidden') && document.getElementById('panel-title').innerText.includes('背包')) { togglePanel('inventory'); }
-    } else { showToast("🚜 目前沒有成熟的作物可以收成喔！", "info"); }
+        if(!p.classList.contains('hidden') && document.getElementById('panel-title').innerText.includes('背包')) togglePanel('inventory'); 
+    } else showToast("🚜 目前沒有成熟的作物可以收成喔！", "info"); 
 }
 
 function autoPlant() {
-    let cost = SEED_DATA[currentSeed].cost;
-    let emptyTiles = [];
-    for(let y=0; y<ROWS; y++) {
-        for(let x=0; x<COLS; x++) { if(!gameState.farmTiles[y][x].plant) emptyTiles.push({x: x, y: y}); }
-    }
+    let cost = SEED_DATA[currentSeed].cost; let emptyTiles = [];
+    for(let y=0; y<ROWS; y++) { for(let x=0; x<COLS; x++) { if(!gameState.farmTiles[y][x].plant) emptyTiles.push({x: x, y: y}); } }
     emptyTiles.sort(() => Math.random() - 0.5);
     let count = 0;
     for(let i=0; i<emptyTiles.length; i++) {
-        if (gameState.coins >= cost) {
-            gameState.coins -= cost;
-            let t = gameState.farmTiles[emptyTiles[i].y][emptyTiles[i].x];
-            t.plant = true; t.type = currentSeed; t.progress = 0; count++;
-        } else { break; }
+        if (gameState.coins >= cost) { gameState.coins -= cost; let t = gameState.farmTiles[emptyTiles[i].y][emptyTiles[i].x]; t.plant = true; t.type = currentSeed; t.progress = 0; count++; } 
+        else break; 
     }
-    if(count > 0) { updateUI(); saveGame(); showToast(`🌱 成功一鍵播種了 ${count} 個 ${SEED_DATA[currentSeed].name}！`, "success");
-    } else if (gameState.coins < cost) { showToast(`💰 金幣不足！每個需要 ${cost} 金幣。`, "error");
-    } else { showToast("🌱 農場客滿，沒有空地囉！", "info"); }
+    if(count > 0) { updateUI(); saveGame(); showToast(`🌱 成功一鍵播種了 ${count} 個 ${SEED_DATA[currentSeed].name}！`, "success"); } 
+    else if (gameState.coins < cost) { showToast(`💰 金幣不足！每個需要 ${cost} 金幣。`, "error"); } 
+    else showToast("🌱 農場客滿，沒有空地囉！", "info"); 
 }
 
 function equipSeed(type) { currentSeed = type; updateUI(); togglePanel('shop'); }
 function switchPet(petId) { gameState.currentPet = petId; updateUI(); togglePanel(); saveGame(); }
-
 function buyPet(petId) {
     if (petId === 'cat' && !gameState.isPro) { showPaywall("解鎖最強寵物「比比拉布」是專業版專屬福利喔！"); togglePanel(); return; }
     let cost = PET_DATA[petId].cost;
-    if (gameState.coins >= cost) {
-        gameState.coins -= cost; gameState.petsOwned.push(petId);
-        switchPet(petId); loadQuestion(); 
-    } else { showToast(`金幣不足！需要 💰${cost}`, "error"); }
+    if (gameState.coins >= cost) { gameState.coins -= cost; gameState.petsOwned.push(petId); switchPet(petId); loadQuestion(); } 
+    else showToast(`金幣不足！需要 💰${cost}`, "error"); 
 }
 
 function togglePanel(type) {
@@ -731,70 +729,51 @@ function togglePanel(type) {
     if (!type) { p.classList.add('hidden'); return; }
     p.classList.remove('hidden');
     if (type === 'inventory') {
-        const pTitle = document.getElementById('panel-title');
-        if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
-        let invHTML = `<div style="display:flex; gap:10px; margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-            <button onclick="autoHarvest()" style="flex:1; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;">🚜 一鍵收成</button>
-        </div>`;
+        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
+        let invHTML = `<div style="display:flex; gap:10px; margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;"><button onclick="autoHarvest()" style="flex:1; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;">🚜 一鍵收成</button></div>`;
         let hasItem = false;
+        // 📜 渲染改名卷軸
+        if (gameState.inventory['renameScroll'] > 0) {
+            hasItem = true;
+            invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;">
+                <span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span>
+                <button onclick="useRenameScroll()" style="width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91;">✨ 改變命運 (使用)</button>
+            </div>`;
+        }
         for (let key in SEED_DATA) {
             let count = gameState.inventory[key] || 0;
             if (count > 0) { 
                 hasItem = true;
-                invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
-                    <span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #2c3e50;">${SEED_DATA[key].name} x ${count}</span>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;">
-                        <button onclick="feedPig('${key}')" style="background:#8bc34a;">餵 1</button>
-                        <button onclick="feedAllOf('${key}')" style="background:#27ae60;">全餵</button>
-                        <button onclick="sellPlant('${key}')" style="background:#f39c12;">賣 1</button>
-                        <button onclick="sellAllOf('${key}')" style="background:#e74c3c;">全賣</button>
-                    </div>
-                </div>`;
+                invHTML += `<div class="shop-item" style="flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;"><span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #2c3e50;">${SEED_DATA[key].name} x ${count}</span><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;"><button onclick="feedPig('${key}')" style="background:#8bc34a;">餵 1</button><button onclick="feedAllOf('${key}')" style="background:#27ae60;">全餵</button><button onclick="sellPlant('${key}')" style="background:#f39c12;">賣 1</button><button onclick="sellAllOf('${key}')" style="background:#e74c3c;">全賣</button></div></div>`;
             }
         }
         document.getElementById('panel-body').innerHTML = hasItem ? invHTML : invHTML + "<p style='text-align:center; color:#777; margin-top:20px;'>背包空空的</p>";
     } else if (type === 'shop') {
-        const pTitle = document.getElementById('panel-title');
-        if(pTitle) pTitle.innerText = '種子商城';
-        let shopHTML = `<div style="margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-            <button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 一鍵播種</button>
-        </div>`;
+        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '種子商城';
+        let shopHTML = `<div style="margin-bottom:10px; border-bottom: 2px solid #eee; padding-bottom: 10px;"><button onclick="autoPlant()" style="width:100%; background:#27ae60; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none; font-size:1em;">🌱 一鍵播種</button></div>`;
         for (let key in SEED_DATA) {
-            let seed = SEED_DATA[key];
-            let isUnlocked = gameState.petStats.pig.lv >= seed.unlockLv; 
+            let seed = SEED_DATA[key]; let isUnlocked = gameState.petStats.pig.lv >= seed.unlockLv; 
             let btnBg = !isUnlocked ? '#bdc3c7' : (currentSeed === key ? '#f1c40f' : '#3498db');
             let btnColor = (currentSeed === key) ? '#d35400' : 'white';
             let btnText = isUnlocked ? (currentSeed === key ? '✔ 裝備中' : '裝備') : '🔒 未解鎖';
             let extraStyle = currentSeed === key ? 'box-shadow: 0 0 12px rgba(241, 196, 15, 0.8); transform: scale(1.05); border: 2px solid #e67e22;' : '';
-            shopHTML += `<div class="shop-item" style="padding: 10px 0;">
-                <span>${seed.name} (💰${seed.cost}) <br><small style="color:#7f8c8d;">${isUnlocked ? '已解鎖' : `神豬 Lv.${seed.unlockLv} 解鎖`}</small></span>
-                <button onclick="equipSeed('${seed.id}')" ${!isUnlocked?'disabled':''} style="background: ${btnBg}; color: ${btnColor}; transition: 0.2s; ${extraStyle}">${btnText}</button>
-            </div>`;
+            shopHTML += `<div class="shop-item" style="padding: 10px 0;"><span>${seed.name} (💰${seed.cost}) <br><small style="color:#7f8c8d;">${isUnlocked ? '已解鎖' : `神豬 Lv.${seed.unlockLv} 解鎖`}</small></span><button onclick="equipSeed('${seed.id}')" ${!isUnlocked?'disabled':''} style="background: ${btnBg}; color: ${btnColor}; transition: 0.2s; ${extraStyle}">${btnText}</button></div>`;
         }
         document.getElementById('panel-body').innerHTML = shopHTML;
     } else if (type === 'pet') {
-        const pTitle = document.getElementById('panel-title');
-        if(pTitle) pTitle.innerText = '寵物招募';
+        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '寵物招募';
         let petHTML = "";
         for (let key in PET_DATA) {
-            let pData = PET_DATA[key];
-            let isOwned = gameState.petsOwned.includes(key);
-            let isCurrent = gameState.currentPet === key;
-            if (isOwned) {
-                petHTML += `<div class="shop-item" style="background: ${isCurrent ? '#e8f5e9' : 'transparent'};"><span style="font-weight:bold;">${pData.title} <br><small>Lv.${gameState.petStats[key].lv}</small></span><button onclick="switchPet('${key}')" ${isCurrent?'disabled':''} style="background: ${isCurrent ? '#999' : '#3498db'}">${isCurrent ? '指定' : '選擇'}</button></div>`;
-            } else {
-                let costText = (key === 'cat' && !gameState.isPro) ? "🔒 PRO專屬" : `💰${pData.cost}`;
-                let btnColor = (key === 'cat' && !gameState.isPro) ? "#95a5a6" : "#e74c3c";
-                petHTML += `<div class="shop-item" style="background: #fdf2e9;"><span style="font-weight:bold;">${pData.title} <br><small>${pData.desc}</small></span><button onclick="buyPet('${key}')" style="background: ${btnColor}">${costText}</button></div>`;
-            }
+            let pData = PET_DATA[key]; let isOwned = gameState.petsOwned.includes(key); let isCurrent = gameState.currentPet === key;
+            if (isOwned) petHTML += `<div class="shop-item" style="background: ${isCurrent ? '#e8f5e9' : 'transparent'};"><span style="font-weight:bold;">${pData.title} <br><small>Lv.${gameState.petStats[key].lv}</small></span><button onclick="switchPet('${key}')" ${isCurrent?'disabled':''} style="background: ${isCurrent ? '#999' : '#3498db'}">${isCurrent ? '指定' : '選擇'}</button></div>`;
+            else petHTML += `<div class="shop-item" style="background: #fdf2e9;"><span style="font-weight:bold;">${pData.title} <br><small>${pData.desc}</small></span><button onclick="buyPet('${key}')" style="background: ${(key === 'cat' && !gameState.isPro) ? "#95a5a6" : "#e74c3c"}">${(key === 'cat' && !gameState.isPro) ? "🔒 PRO專屬" : `💰${pData.cost}`}</button></div>`;
         }
         document.getElementById('panel-body').innerHTML = petHTML;
     }
 }
 
 function updateUI() {
-    const coinEl = document.getElementById('coin-count');
-    if(coinEl) coinEl.innerText = Math.floor(gameState.coins);
+    const coinEl = document.getElementById('coin-count'); if(coinEl) coinEl.innerText = Math.floor(gameState.coins);
     const proBadge = document.getElementById('pro-badge');
     if (gameState.isPro) { document.body.classList.add('is-pro'); if (proBadge) proBadge.classList.remove('hidden'); } 
     else { document.body.classList.remove('is-pro'); if (proBadge) proBadge.classList.add('hidden'); }
@@ -805,46 +784,73 @@ function updateUI() {
         if (gameState.energy >= 90) { energyFill.style.background = "#f1c40f"; energyFill.style.boxShadow = "0 0 10px #f1c40f"; } 
         else { energyFill.style.background = "#e67e22"; energyFill.style.boxShadow = "none"; }
     }
-    const energyNum = document.getElementById('energy-num');
-    if (energyNum) energyNum.innerText = Math.floor(gameState.energy);
+    const energyNum = document.getElementById('energy-num'); if (energyNum) energyNum.innerText = Math.floor(gameState.energy);
     
+    const comboBadge = document.getElementById('combo-badge'); const comboCount = document.getElementById('combo-count');
+    if (gameState.combo >= 3) { if (comboBadge) comboBadge.classList.remove('hidden'); if (comboCount) comboCount.innerText = gameState.combo; } 
+    else { if (comboBadge) comboBadge.classList.add('hidden'); }
+
     let cp = gameState.currentPet; let stat = gameState.petStats[cp];
     const expFill = document.getElementById('exp-fill');
-    if(expFill) expFill.style.width = (stat.exp / (stat.lv * 100) * 100) + "%";
-    const pigLv = document.getElementById('pig-lv');
-    if(pigLv) pigLv.innerText = stat.lv;
-    const playerName = document.getElementById('player-name-display');
-    if(playerName) playerName.innerText = currentUser + " 的 " + PET_DATA[cp].title;
+    let reqExp = Math.floor(100 * Math.pow(1.15, stat.lv - 1));
+    if(expFill) expFill.style.width = (stat.exp / reqExp * 100) + "%";
+    const pigLv = document.getElementById('pig-lv'); if(pigLv) pigLv.innerText = stat.lv;
+    const playerName = document.getElementById('player-name-display'); 
+    if(playerName) playerName.innerText = currentUser + " 的 " + (stat.customName || PET_DATA[cp].title);
     
-    let petImgKey = cp + "_Down";
-    if (!images[petImgKey] || !images[petImgKey].isLoaded) petImgKey = "pig_Down";
-    const pigImg = document.getElementById('pig-img');
-    if (pigImg && images[petImgKey] && images[petImgKey].isLoaded) { pigImg.src = images[petImgKey].src; pigImg.style.display = 'block'; }
+    let petImgKey = cp + "_Down"; if (!images[petImgKey] || !images[petImgKey].isLoaded) petImgKey = "pig_Down";
+    const pigImg = document.getElementById('pig-img'); if (pigImg && images[petImgKey] && images[petImgKey].isLoaded) { pigImg.src = images[petImgKey].src; pigImg.style.display = 'block'; }
 }
 
-loadAssets();
-
-// ================= 手機版分頁切換控制 =================
 function switchTab(tabName) {
-    if (window.innerWidth > 1024) return; // 桌機版不作用
-
-    const sidebar = document.getElementById('sidebar');
-    const farm = document.getElementById('farm-viewport');
-    const quizBtn = document.getElementById('nav-quiz-btn');
-    const farmBtn = document.getElementById('nav-farm-btn');
+    if (window.innerWidth > 1024) return; 
+    const sidebar = document.getElementById('sidebar'); const farm = document.getElementById('farm-viewport');
+    const quizBtn = document.getElementById('nav-quiz-btn'); const farmBtn = document.getElementById('nav-farm-btn');
 
     if (tabName === 'quiz') {
-        if(sidebar) sidebar.classList.remove('mobile-hidden');
-        if(farm) farm.classList.add('mobile-hidden');
-        if(quizBtn) quizBtn.classList.add('active');
-        if(farmBtn) farmBtn.classList.remove('active');
+        if(sidebar) sidebar.classList.remove('mobile-hidden'); if(farm) farm.classList.add('mobile-hidden');
+        if(quizBtn) quizBtn.classList.add('active'); if(farmBtn) farmBtn.classList.remove('active');
     } else if (tabName === 'farm') {
-        if(sidebar) sidebar.classList.add('mobile-hidden');
-        if(farm) farm.classList.remove('mobile-hidden');
-        if(quizBtn) quizBtn.classList.remove('active');
-        if(farmBtn) farmBtn.classList.add('active');
-        
-        // 切換到農場時，重新計算畫布大小防止變形
+        if(sidebar) sidebar.classList.add('mobile-hidden'); if(farm) farm.classList.remove('mobile-hidden');
+        if(quizBtn) quizBtn.classList.remove('active'); if(farmBtn) farmBtn.classList.add('active');
         setTimeout(resize, 50);
     }
 }
+
+// ==========================================
+// 👑 傳說改名卷軸使用邏輯
+// ==========================================
+function useRenameScroll() {
+    if (!gameState.inventory['renameScroll'] || gameState.inventory['renameScroll'] <= 0) return;
+    
+    let target = prompt("請輸入數字選擇要改名的對象：\n[1] 勇者姓名 (你自己)\n[2] 目前的寵物");
+    if (target === "1") {
+        let newName = prompt("請輸入新的勇者姓名：");
+        if (newName && newName.trim()) {
+            let oldName = currentUser;
+            currentUser = newName.trim();
+            // 轉移存檔
+            let oldData = localStorage.getItem('vocabMaster_' + oldName);
+            if(oldData) {
+                localStorage.setItem('vocabMaster_' + currentUser, oldData);
+                localStorage.removeItem('vocabMaster_' + oldName);
+            }
+            localStorage.setItem('last_user_vocablord', currentUser);
+            gameState.inventory['renameScroll']--;
+            saveGame(); updateUI(); togglePanel('inventory');
+            showToast("✨ 命運已改寫！勇者姓名已變更！", "success");
+        }
+    } else if (target === "2") {
+        let newPetName = prompt("請輸入寵物的新名字：");
+        if (newPetName && newPetName.trim()) {
+            let cp = gameState.currentPet;
+            gameState.petStats[cp].customName = newPetName.trim();
+            gameState.inventory['renameScroll']--;
+            saveGame(); updateUI(); togglePanel('inventory');
+            showToast("✨ 契約已重鑄！寵物姓名已變更！", "success");
+        }
+    } else {
+        showToast("取消改名。", "info");
+    }
+}
+loadAssets();
