@@ -1,12 +1,25 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>字彙領主 VocabLord - 7000單字絕對記憶農場</title>
+    <title>字彙領主 VocabLord</title>
+    
     <link rel="stylesheet" href="style.css">
-</head>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="assets/Characters/Pig_Down.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+    </head>
 <body>
+
     <div id="login-screen">
         <div class="login-box">
             <img src="assets/Characters/Pig_Down.png" class="login-logo" id="login-pet-img" onerror="this.src=''">
@@ -272,7 +285,7 @@
                     <p>將字首與字根如裝備般合成！提煉專屬「魔法肥料」，大幅縮短作物生長週期。</p>
                 </div>
                 <div class="roadmap-item">
-                    <h4>🎭 地方大戲院 (跨文化擴充包)</h4>
+                    <h4>🎭 地方大戲園 (跨文化擴充包)</h4>
                     <p>台語文、經典粵劇詞彙大挑戰！一鍵將農場切換為復古大戲院專屬場景。</p>
                 </div>
                 <div class="roadmap-item">
@@ -281,7 +294,7 @@
                 </div>
                 <div class="roadmap-item">
                     <h4>⚔️ 跨校公會戰 (社群排行榜)</h4>
-                    <p>揪團戰鬥！加入「延平校友會」等陣營，與各校菁英展開同儕間的良性競爭！</p>
+                    <p>招團戰鬥！加入「XX校友會」等陣營，與各校菁英展開同儕間的良性競爭！</p>
                 </div>
                 <div class="roadmap-item">
                     <h4>👿 易混淆大魔王 (終極防禦戰)</h4>

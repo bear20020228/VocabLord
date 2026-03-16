@@ -365,7 +365,7 @@ body.is-pro #ui-overlays { left: 20px; }
 }
 
 /* ==========================================
-   📱 手機版登入畫面：垂直極限壓縮補丁
+   📱 手機版登入畫面：垂直壓縮 & Logo 比例完美固定補丁
    ========================================== */
 @media (max-width: 480px) {
     /* 1. 縮減登入框整體的內距 (Padding) */
@@ -374,10 +374,15 @@ body.is-pro #ui-overlays { left: 20px; }
         margin: 10px auto; 
     }
 
-    /* 2. 縮小 Logo 並且消除它下方的空白 */
+    /* 2. ★ 核心修復：縮小 Logo 並強制固定比例 ★ */
     #login-pet-img { 
-        width: 55px; 
+        width: 55px; /* 保持壓縮寬度 */
+        height: auto !important; /* 強制高度根據寬度自動調整，防止變形 */
+        aspect-ratio: 1 / 1; /* ★ 秘密武器：強制 1:1 比例鎖 */
         margin-bottom: 0; 
+        display: block; /* 確保 margin 自動居中正常運作 */
+        margin-left: auto;
+        margin-right: auto;
     }
 
     /* 3. 壓縮主標題與副標題的字體和行高 */
@@ -424,4 +429,5 @@ body.is-pro #ui-overlays { left: 20px; }
         margin-top: 10px;
         font-size: 0.7em;
     }
+
 }

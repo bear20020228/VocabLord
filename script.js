@@ -3,7 +3,7 @@
 // ==========================================
 
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -123,15 +123,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-document.addEventListener("DOMContentLoaded", () => {
-    const lastUser = localStorage.getItem('last_user_vocablord');
-    if (lastUser) { document.getElementById('username-input').value = lastUser; }
-    const panel = document.getElementById('floating-panel');
-    if (panel) { document.body.appendChild(panel); panel.style.position = 'fixed'; panel.style.zIndex = '9999'; }
-    
-    // 初始化存檔計時器
-    setInterval(saveGame, 5000);
-});
+
 
 // --- 雲端同步函數 ---
 // === 究極版：無敵雲端儲存 (破解 Nested Array 限制) ===
@@ -1351,34 +1343,53 @@ function showFloatingText(text, color = "#f1c40f") {
 }
 
 // 預先載入圖片
+
 loadAssets();
 
 // ==========================================
-// 🚀 統一百格事件綁定區 (業界標準寫法)
+// 🚀 統一百格事件綁定區與系統初始化
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
-    // 登入與大廳
+    // 1. 替換成記憶 Email (如果玩家未登入，預先填好 Email)
+    const lastEmail = localStorage.getItem('last_email_vocablord');
+    const emailInput = document.getElementById('email-input');
+    if (lastEmail && emailInput) { 
+        emailInput.value = lastEmail; 
+    }
+
+    // 2. 懸浮面板初始化 
+    const panel = document.getElementById('floating-panel');
+    if (panel) { 
+        document.body.appendChild(panel); 
+        panel.style.position = 'fixed'; 
+        panel.style.zIndex = '9999'; 
+    }
+    
+    // 3. 初始化存檔計時器 
+    setInterval(saveGame, 5000);
+
+    // ==========================================
+    // 🚀 Firebase 自動登入守衛 (免手動登入)
+    // ==========================================
+    
+
+    // ==========================================
+    // 按鈕與互動事件綁定
+    // ==========================================
     document.getElementById('btn-login')?.addEventListener('click', login);
     document.getElementById('btn-register')?.addEventListener('click', register);
+    document.getElementById('btn-submit-hero-name')?.addEventListener('click', submitHeroName);
     document.getElementById('btn-open-tutorial')?.addEventListener('click', showTutorial);
     document.getElementById('btn-open-coming-soon')?.addEventListener('click', showComingSoon);
-
-    // 選擇領域
     document.getElementById('realm-english')?.addEventListener('click', () => enterRealm('english'));
     document.getElementById('realm-taiwanese')?.addEventListener('click', () => enterRealm('taiwanese'));
     document.getElementById('realm-medical')?.addEventListener('click', () => enterRealm('medical'));
-
-    // 側邊欄與難度設定
     document.getElementById('avatar-toggle-pet')?.addEventListener('click', () => togglePanel('pet'));
     document.getElementById('in-game-difficulty')?.addEventListener('change', changeDifficulty);
     document.getElementById('en-en-mode-toggle')?.addEventListener('change', toggleEnEnMode);
     document.getElementById('synonym-mode-toggle')?.addEventListener('change', toggleSynonymMode);
-
-    // 發音按鈕
     document.getElementById('btn-speak-normal')?.addEventListener('click', () => speakCurrentWord('normal'));
     document.getElementById('btn-speak-slow')?.addEventListener('click', () => speakCurrentWord('slow'));
-
-    // 主介面功能與切換
     document.getElementById('pro-upgrade-btn')?.addEventListener('click', () => showPaywall('解鎖完整 7000 單字庫與 VIP 寵物招募權限！'));
     document.getElementById('btn-back-to-map')?.addEventListener('click', backToMap);
     document.getElementById('btn-open-daily-tasks')?.addEventListener('click', openDailyTasks);
@@ -1388,12 +1399,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-toggle-shop')?.addEventListener('click', () => togglePanel('shop'));
     document.getElementById('btn-auto-plant')?.addEventListener('click', autoPlant);
     document.getElementById('btn-auto-harvest')?.addEventListener('click', autoHarvest);
-
-    // 底部導覽列 (手機版)
     document.getElementById('nav-quiz-btn')?.addEventListener('click', () => switchTab('quiz'));
     document.getElementById('nav-farm-btn')?.addEventListener('click', () => switchTab('farm'));
-
-    // 關閉各種面板與彈出視窗
     document.getElementById('btn-close-panel')?.addEventListener('click', () => togglePanel());
     document.getElementById('btn-close-review')?.addEventListener('click', closeReviewArea);
     document.getElementById('btn-close-graduated')?.addEventListener('click', closeGraduatedArea);
@@ -1405,13 +1412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-coming-soon-x')?.addEventListener('click', closeComingSoon);
     document.getElementById('btn-close-coming-soon-ok')?.addEventListener('click', closeComingSoon);
     document.getElementById('btn-close-rest-reminder')?.addEventListener('click', () => document.getElementById('rest-reminder-modal').classList.add('hidden'));
-
-    // 特殊互動按鈕
     document.getElementById('btn-verify-license')?.addEventListener('click', verifyLicenseKey);
     document.getElementById('btn-shield-false')?.addEventListener('click', () => resolveShieldPrompt(false));
     document.getElementById('btn-shield-true')?.addEventListener('click', () => resolveShieldPrompt(true));
-
-
-// 在 document.addEventListener("DOMContentLoaded", () => { ... 裡面加上這一行：
-document.getElementById('btn-submit-hero-name')?.addEventListener('click', submitHeroName);
 });

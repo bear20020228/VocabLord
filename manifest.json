@@ -1,0 +1,20 @@
+{
+  "name": "字彙領主 VocabLord",
+  "short_name": "字彙領主",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f39c12",
+  "icons": [
+    {
+      "src": "assets/Characters/Pig_Down.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/Characters/Pig_Down.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
