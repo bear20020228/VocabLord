@@ -1346,6 +1346,21 @@ function showFloatingText(text, color = "#f1c40f") {
 
 loadAssets();
 
+
+// ==========================================
+    // 🍎 偵測 iOS 設備並顯示「加入主畫面」提示
+    // ==========================================
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    // iOS Safari 專屬判斷屬性，如果是從桌面圖示開啟，standalone 會是 true
+    const isStandalone = window.navigator.standalone === true; 
+
+    // 如果是 iOS，而且還沒安裝成 App (在瀏覽器裡)，就顯示教學彈窗
+    if (isIos && !isStandalone) {
+        document.getElementById('ios-install-modal').classList.remove('hidden');
+    }
+
+
+    
 // ==========================================
 // 🚀 統一百格事件綁定區與系統初始化
 // ==========================================
