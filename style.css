@@ -210,6 +210,9 @@ body.is-pro #ui-overlays { left: 20px; }
 .hidden-desktop { display: none; }
 .mobile-hidden { display: none !important; }
 
+/* 移除最前面不明的 } */
+
+/* --- 手機版/直式螢幕專用排版 --- */
 @media (max-width: 1024px), (orientation: portrait) {
     #game-container { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; border: none; border-radius: 0; display: flex; flex-direction: column; }
     
@@ -243,6 +246,7 @@ body.is-pro #ui-overlays { left: 20px; }
     
     /* 浮動面板縮小以適應手機 */
     #floating-panel { width: 95%; padding: 15px; }
+} /* 👈 這裡是你原本漏掉的右大括號，非常重要！ */
 
 
 /* =========================================
@@ -279,24 +283,23 @@ body.is-pro #ui-overlays { left: 20px; }
         z-index: 100 !important;
     }
 }
+
 /* 修復付費牆在手機上過大、需要滾動的問題 */
-    .paywall-box {
-        width: 92% !important; 
-        padding: 20px 15px !important; 
-        max-height: 95vh !important;
-        display: flex; flex-direction: column; justify-content: center;
-    }
-    .paywall-box h3 { font-size: 1.3em !important; margin-bottom: 5px !important; }
-    .price-tag { font-size: 1.2em !important; padding: 10px !important; margin: 8px 0 !important; }
-    .pro-features { padding: 10px 10px 10px 25px !important; margin: 8px 0 !important; font-size: 0.85em !important; }
-    .pro-features li { margin-bottom: 5px !important; }
-    .line-contact { padding: 8px !important; margin-bottom: 8px !important; }
-    .line-contact img { width: 80px !important; }
-    .line-contact p { font-size: 0.85em !important; margin: 3px 0 !important; }
-    #license-input { padding: 10px !important; margin-bottom: 10px !important; font-size: 1em !important; height: 45px !important; }
-    #paywall-modal .unlock-btn { padding: 12px !important; font-size: 1.1em !important; height: 50px !important; margin-bottom: 0 !important; }
-
-
+.paywall-box {
+    width: 92% !important; 
+    padding: 20px 15px !important; 
+    max-height: 95vh !important;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.paywall-box h3 { font-size: 1.3em !important; margin-bottom: 5px !important; }
+.price-tag { font-size: 1.2em !important; padding: 10px !important; margin: 8px 0 !important; }
+.pro-features { padding: 10px 10px 10px 25px !important; margin: 8px 0 !important; font-size: 0.85em !important; }
+.pro-features li { margin-bottom: 5px !important; }
+.line-contact { padding: 8px !important; margin-bottom: 8px !important; }
+.line-contact img { width: 80px !important; }
+.line-contact p { font-size: 0.85em !important; margin: 3px 0 !important; }
+#license-input { padding: 10px !important; margin-bottom: 10px !important; font-size: 1em !important; height: 45px !important; }
+#paywall-modal .unlock-btn { padding: 12px !important; font-size: 1.1em !important; height: 50px !important; margin-bottom: 0 !important; }
 
 /* ================= 世界大廳樣式 ================= */
 #world-map-screen {
@@ -359,5 +362,4 @@ body.is-pro #ui-overlays { left: 20px; }
     15% { transform: translateY(-20px) scale(1.2); opacity: 1; }
     80% { transform: translateY(-80px) scale(1); opacity: 1; }
     100% { transform: translateY(-100px) scale(1); opacity: 0; }
-}
 }
