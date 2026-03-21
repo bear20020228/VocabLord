@@ -1032,7 +1032,7 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const VERTICAL_STEP = TILE_SIZE * 0.6; 
-    const OFFSET_Y_FIX = 5; // ⭐️ 與 handleInteraction 同步下壓 8 像素
+    const OFFSET_Y_FIX = 0; // ⭐️ 與 handleInteraction 同步下壓 8 像素
     
     const totalFarmWidth = COLS * TILE_SIZE;
     const totalFarmHeight = (ROWS - 1) * VERTICAL_STEP + TILE_SIZE;
