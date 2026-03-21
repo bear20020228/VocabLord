@@ -684,7 +684,7 @@ function startFeverMode() {
 
             if (o === q.meaning) {
                 b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60"; showToast("✨ 狂熱成功！全農場作物大暴增！", "success");
-                gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 50); } }));
+                gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 20); } }));
                 gameState.coins += 200; 
                 gameState.wordStats[wordKey].correct += 1; gameState.wordStats[wordKey].consecutive += 1;
                 if (gameState.wordStats[wordKey].consecutive >= 5) {
@@ -1506,6 +1506,20 @@ document.addEventListener("DOMContentLoaded", () => {
         togglePanel('shop');
     });
 }); 
+
+document.getElementById('btn-menu-redeem')?.addEventListener('click', () => {
+        document.getElementById('main-menu-modal').classList.add('hidden'); // 先關掉選單
+        let code = prompt("請輸入兌換碼：");
+        
+        if (code === "test999") {
+            gameState.coins += 9999999;
+            saveGame();
+            updateUI();
+            showToast("🎉 測試代碼生效！獲得 9,999,999 金幣！", "success");
+        } else if (code) {
+            showToast("❌ 兌換碼無效或已過期", "error");
+        }
+    });
 
 // ==========================================
 // 🎒 左下角動態裝備按鈕與選擇邏輯
