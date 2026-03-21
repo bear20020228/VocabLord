@@ -34,6 +34,24 @@ let gameState = {
     graduated: {}  
 };
 
+
+function migrateGrid() {
+if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || gameState.farmTiles[0].length !== COLS) {
+let newTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
+if (gameState.farmTiles && gameState.farmTiles.length > 0) {
+for(let y = 0; y < Math.min(ROWS, gameState.farmTiles.length); y++) {
+for(let x = 0; x < Math.min(COLS, gameState.farmTiles[y].length); x++) {
+newTiles[y][x] = gameState.farmTiles[y][x];
+}
+}
+}
+gameState.farmTiles = newTiles;
+saveGame();
+}
+}
+migrateGrid();
+
+
 let activePets = {
     pig: { x: 4, y: 3, targetX: 4, targetY: 3, state: 'idle', timer: 0, dir: 'Down' },
     fox: { x: 7, y: 4, targetX: 7, targetY: 4, state: 'idle', timer: 0, dir: 'Down' },
@@ -146,20 +164,7 @@ function showToast(msg, type = 'info') {
     setTimeout(() => { toast.classList.remove('toast-show'); }, 2500);
 }
 
-function migrateGrid() {
-    if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || gameState.farmTiles[0].length !== COLS) {
-        let newTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
-        if (gameState.farmTiles && gameState.farmTiles.length > 0) {
-            for(let y = 0; y < Math.min(ROWS, gameState.farmTiles.length); y++) {
-                for(let x = 0; x < Math.min(COLS, gameState.farmTiles[y].length); x++) {
-                    newTiles[y][x] = gameState.farmTiles[y][x];
-                }
-            }
-        }
-        gameState.farmTiles = newTiles;
-        saveGame();
-    }
-}
+
 
 function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
@@ -1073,7 +1078,7 @@ function draw() {
                 if (tile.plant) {
                     let k = tile.progress >= 100 ? tile.type + '_02' : tile.type + '_01';
                     if (images[k] && images[k].isLoaded) {
-                        ctx.drawImage(images[k], px, py + OFFSET_Y_FIX, TILE_SIZE, TILE_SIZE);
+                    ctx.drawImage(images[k], px, py + OFFSET_Y_FIX - 5, TILE_SIZE, TILE_SIZE);
                     }
                     
                     // 進度條同步偏移
@@ -1576,6 +1581,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // 全域函數：一鍵播種邏輯
 // ==========================================
 window.confirmAutoPlant = function(seedType) {
+
+     // 1. 防呆：如果網格沒初始化，先初始化
+    if (!gameState.farmTiles || gameState.farmTiles.length === 0) {
+        migrateGrid();
+    }
+
     document.getElementById('seed-select-modal').classList.add('hidden');
     const seedPrices = { 'tomato': 10, 'radish': 12, 'carrot': 15, 'beetroot': 18, 'cucumber': 20, 'onion': 22 };
     const cost = seedPrices[seedType] || 10; 
@@ -1607,3 +1618,15 @@ window.confirmAutoPlant = function(seedType) {
     }
 };
 // ⚠️ 貼到這裡為止，底下千萬不要再有任何符號或括號了！
+
+window.auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        await syncLoadFromCloud();
+        migrateGrid();
+        updateUI();
+    }
+});
+// 在 script.js 最底部或初始化區
+migrateGrid();
+resize(); // 確保計算出正確的 TILE_SIZE
+updateUI();
