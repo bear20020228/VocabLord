@@ -47,9 +47,12 @@ const PET_DATA = {
 };
 
 const SEED_DATA = {
-    carrot: { id: 'carrot', name: '🥕 蘿蔔', cost: 20, sellPrice: 35, unlockLv: 1, exp: 35, growthFactor: 1.0 },
-    tomato: { id: 'tomato', name: '🍅 番茄', cost: 150, sellPrice: 250, unlockLv: 5, exp: 100, growthFactor: 0.5 },
-    radish: { id: 'radish', name: '🧅 甜菜', cost: 800, sellPrice: 1200, unlockLv: 10, exp: 300, growthFactor: 0.2 }
+    carrot: { id: 'carrot', name: '🥕 胡蘿蔔', cost: 15, sellPrice: 30, unlockLv: 1, exp: 35, growthFactor: 1.0 },
+    tomato: { id: 'tomato', name: '🍅 番茄', cost: 10, sellPrice: 25, unlockLv: 1, exp: 100, growthFactor: 0.5 },
+    radish: { id: 'radish', name: '🥕 蘿蔔', cost: 12, sellPrice: 28, unlockLv: 1, exp: 300, growthFactor: 0.2 },
+    beetroot: { id: 'beetroot', name: '🥔 甜菜根', cost: 18, sellPrice: 40, unlockLv: 1, exp: 45, growthFactor: 0.8 },
+    cucumber: { id: 'cucumber', name: '🥒 黃瓜', cost: 20, sellPrice: 50, unlockLv: 1, exp: 60, growthFactor: 0.7 },
+    onion: { id: 'onion', name: '🧅 洋蔥', cost: 22, sellPrice: 60, unlockLv: 1, exp: 80, growthFactor: 0.6 }
 };
 
 // ==========================================
@@ -627,12 +630,13 @@ async function generateOptionsAsync(grid, baseReward) {
                 let isCrit = Math.random() < 0.15; let actuallyGrew = false;
                 gameState.farmTiles.forEach(r => r.forEach(t => { 
                     if(t.plant && t.progress < 100) { 
-                        t.progress = Math.min(100, t.progress + (10 * (SEED_DATA[t.type].growthFactor || 1) * (isCrit ? 3 : 1))); 
+                        // ⭐️ 防呆：如果未來又找不到作物資料，預設生長係數為 1，防止遊戲當機
+                        let factor = SEED_DATA[t.type] ? SEED_DATA[t.type].growthFactor : 1;
+                        t.progress = Math.min(100, t.progress + (10 * factor * (isCrit ? 3 : 1))); 
                         actuallyGrew = true;
                     } 
                 }));
                 if (isCrit && actuallyGrew) showToast("⚡ 爆擊！作物瘋狂生長！", "success");
-
                 saveGame(); updateUI();
                 setTimeout(() => { 
                     if (gameState.combo > 0 && gameState.combo % 10 === 0) startFeverMode(); 
@@ -1000,7 +1004,8 @@ function checkPetCollision(p) {
             else if (t.progress >= 100) {
                 gameState.inventory[t.type] = (gameState.inventory[t.type] || 0) + 1;
                 t.plant = false; t.progress = 0;
-                let plantEmoji = t.type === 'radish' ? '🧅' : (t.type === 'tomato' ? '🍅' : '🥕');
+                // ⭐️ 動態抓取資料庫的 Emoji，防止寫死造成錯誤
+                let plantEmoji = SEED_DATA[t.type] ? SEED_DATA[t.type].name.split(' ')[0] : '🌱';
                 t.type = null;
                 showFloatingText(`+1 ${plantEmoji}`, "#2ecc71"); 
             }
