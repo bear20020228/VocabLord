@@ -446,13 +446,13 @@ function showShieldPromptModal(type, callback) {
     let msg = type === "wrong" 
         ? `❌ 答錯了！你的 ${gameState.combo} 連勝即將中斷！` 
         : `👀 已標記！你的 ${gameState.combo} 連勝即將中斷！`;
-    document.getElementById('shield-prompt-msg').innerText = msg + "\n要立刻花費 💰1500 金幣發動【🛡️ 連勝保護傘】保住連勝嗎？";
+    document.getElementById('shield-prompt-msg').innerText = msg + "\n要立刻花費 💰15000 金幣發動【🛡️ 連勝保護傘】保住連勝嗎？";
 }
 
 function resolveShieldPrompt(buy) {
     document.getElementById('shield-prompt-modal').classList.add('hidden');
-    if (buy && gameState.coins >= 1500) {
-        gameState.coins -= 1500;
+    if (buy && gameState.coins >= 15000) {
+        gameState.coins -= 15000;
         showToast("🛡️ 成功購買並發動保護傘！連勝保住了！", "success");
     } else {
         gameState.combo = 0;
@@ -596,7 +596,7 @@ async function generateOptionsAsync(grid, baseReward) {
                     showToast("🛡️ 保護傘發動！抵銷一次連勝中斷！", "info");
                     finalizeWrongAnswer(); 
                 } else {
-                    if (gameState.combo > 0 && gameState.coins >= 1500) {
+                    if (gameState.combo > 0 && gameState.coins >= 15000) {
                         showShieldPromptModal("wrong", finalizeWrongAnswer); 
                     } else {
                         gameState.combo = 0; showToast("❌ 答錯囉！連勝歸零", "error");
@@ -1192,9 +1192,9 @@ function togglePanel(type) {
         panelBody.appendChild(title2);
 
         let shieldDiv = document.createElement('div'); shieldDiv.className = 'shop-item'; shieldDiv.style.marginBottom = "15px";
-        shieldDiv.innerHTML = `<span>🛡️ 連勝保護傘 (💰1500)<br><small style="color:#7f8c8d;">答錯時免除一次連勝歸零</small></span>`;
+        shieldDiv.innerHTML = `<span>🛡️ 連勝保護傘 (💰15000)<br><small style="color:#7f8c8d;">答錯時免除一次連勝歸零</small></span>`;
         let shieldBtn = document.createElement('button'); shieldBtn.innerText = "購買"; shieldBtn.style = "background: #3498db; color: white;";
-        shieldBtn.addEventListener('click', () => buyItem('shield', 1500)); shieldDiv.appendChild(shieldBtn); panelBody.appendChild(shieldDiv);
+        shieldBtn.addEventListener('click', () => buyItem('shield', 15000)); shieldDiv.appendChild(shieldBtn); panelBody.appendChild(shieldDiv);
 
     } else if (type === 'pet') {
         const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '寵物招募';
@@ -1264,12 +1264,14 @@ window.drawGacha = function(count) {
 
         let results = [];
         for(let i=0; i<count; i++) {
-            let r = Math.random();
-            if (r < 0.02)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"});
-            else if (r < 0.08) results.push({name: "2萬金幣", icon: "💰", type: "coin", val: 20000});
-            else if (r < 0.20) results.push({name: "8千金幣", icon: "💵", type: "coin", val: 8000});
-            else if (r < 0.55) results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});
-            else               results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});
+        let r = Math.random();
+        if (r < 0.005)     results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); // 0.5%
+        else if (r < 0.05) results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       // 4.5%
+        else if (r < 0.10) results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});       // 15%
+        else if (r < 0.22) results.push({name: "2萬金幣", icon: "💰", type: "coin", val: 20000});          // 2%
+        else if (r < 0.30) results.push({name: "1萬金幣", icon: "💰", type: "coin", val: 10000});          // 8%
+        else if (r < 0.50) results.push({name: "5千金幣", icon: "💵", type: "coin", val: 5000});           // 20%
+        else               results.push({name: "2千金幣", icon: "🪙", type: "coin", val: 2000});           // 50%
         }
 
         results.forEach(res => {
