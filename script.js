@@ -1463,7 +1463,6 @@ function showFloatingText(text, color = "#f1c40f") {
 
 loadAssets();
 
-
 // === 🍎 召喚 iOS 安裝提示 (延遲 1 秒，等大廳載入完畢) ===
 function checkAndShowIOSPrompt() {
     const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
@@ -1499,11 +1498,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(saveGame, 5000);
 
     // ==========================================
-    // 🚀 Firebase 自動登入守衛 (免手動登入)
-    // ==========================================
-    
-
-    // ==========================================
     // 按鈕與互動事件綁定
     // ==========================================
     document.getElementById('btn-login')?.addEventListener('click', login);
@@ -1524,7 +1518,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-back-to-map')?.addEventListener('click', backToMap);
     document.getElementById('btn-toggle-inventory')?.addEventListener('click', () => togglePanel('inventory'));
     document.getElementById('btn-toggle-shop')?.addEventListener('click', () => togglePanel('shop'));
-    document.getElementById('btn-auto-plant')?.addEventListener('click', autoPlant);
     document.getElementById('btn-auto-harvest')?.addEventListener('click', autoHarvest);
     document.getElementById('nav-quiz-btn')?.addEventListener('click', () => switchTab('quiz'));
     document.getElementById('nav-farm-btn')?.addEventListener('click', () => switchTab('farm'));
@@ -1544,16 +1537,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-shield-true')?.addEventListener('click', () => resolveShieldPrompt(true));
 
     // ==========================================
-    // ⭐️ 新增：領主選單與子功能綁定
+    // 領主選單與子功能綁定
     // ==========================================
-    // 打開主選單
     document.getElementById('btn-open-main-menu')?.addEventListener('click', () => {
         document.getElementById('main-menu-modal').classList.remove('hidden');
     });
 
-    // 選單內的四個子功能按鈕
     document.getElementById('btn-menu-daily')?.addEventListener('click', () => {
-        document.getElementById('main-menu-modal').classList.add('hidden'); // 先關閉選單
+        document.getElementById('main-menu-modal').classList.add('hidden');
         openDailyTasks();
     });
     document.getElementById('btn-menu-dex')?.addEventListener('click', () => {
@@ -1570,26 +1561,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ==========================================
-    // ⭐️ 替換：攔截一鍵播種，改成開啟種子選擇面板
+    // 攔截一鍵播種，改成開啟種子選擇面板
     // ==========================================
     const autoPlantBtn = document.getElementById('btn-auto-plant');
     if (autoPlantBtn) {
-        // 先移除舊的綁定 (保險起見)
         const newPlantBtn = autoPlantBtn.cloneNode(true);
         autoPlantBtn.parentNode.replaceChild(newPlantBtn, autoPlantBtn);
-        // 綁定新的動作：打開面板
         newPlantBtn.addEventListener('click', () => {
             document.getElementById('seed-select-modal').classList.remove('hidden');
         });
     }
-
-});
+}); // DOMContentLoaded 結束
 
 
 // ==========================================
-    // ⭐️ 更新：一鍵播種邏輯 (對應 HTML 的六大作物)
-    // ==========================================
-    window.confirmAutoPlant = function(seedType) {
+// 全域函數：一鍵播種邏輯
+// ==========================================
+window.confirmAutoPlant = function(seedType) {
     document.getElementById('seed-select-modal').classList.add('hidden');
     const seedPrices = { 'tomato': 10, 'radish': 12, 'carrot': 15, 'beetroot': 18, 'cucumber': 20, 'onion': 22 };
     const cost = seedPrices[seedType] || 10; 
@@ -1598,27 +1586,26 @@ document.addEventListener("DOMContentLoaded", () => {
     
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-            // ⭐️ 核心判斷：如果是最外圈（y=0, y=max, x=0, x=max），跳過不播種
             const isFenceArea = (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1);
             if (isFenceArea) continue;
 
             let tile = gameState.farmTiles[r][c];
             if (!tile.plant && gameState.coins >= cost) {
                 gameState.coins -= cost;
-                tile.plant = true; // 統一使用 plant
+                tile.plant = true; 
                 tile.type = seedType;
                 tile.progress = 0;
                 plantedCount++;
             }
         }
     }
-    // ... 後續提示與存檔邏輯 ...
-        
-        if (plantedCount > 0) {
-            showToast(`成功播種 ${plantedCount} 塊地！花費 ${plantedCount * cost} 金幣`, "success");
-            updateUI();
-            saveGame();
-        } else {
-            showToast("金幣不足或沒有空地可以播種了！", "error");
-        }
-    };
+    
+    if (plantedCount > 0) {
+        showToast(`成功播種 ${plantedCount} 塊地！花費 ${plantedCount * cost} 金幣`, "success");
+        updateUI();
+        saveGame();
+    } else {
+        showToast("金幣不足或沒有空地可以播種了！", "error");
+    }
+};
+// ⚠️ 貼到這裡為止，底下千萬不要再有任何符號或括號了！
