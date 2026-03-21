@@ -3,7 +3,6 @@
 // ==========================================
 
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 
 const canvas = document.getElementById('gameCanvas');
@@ -257,7 +256,10 @@ async function login() {
     }
 }
 
-async function resetPassword() {
+// 🔥 確保函數綁定在 window 上，HTML 才能直接呼叫
+window.resetPassword = async function() {
+    console.log("【測試】忘記密碼按鈕已被點擊！"); // 按 F12 可以在 Console 看到這行
+    
     const email = document.getElementById('email-input').value.trim();
     if (!email) return showToast("⚠️ 請先在上方輸入你的 Email，再點擊忘記密碼！", "error");
 
@@ -265,9 +267,18 @@ async function resetPassword() {
         await sendPasswordResetEmail(window.auth, email);
         showToast("📧 已寄出重設密碼信！請去信箱收信。", "success");
     } catch (error) {
-        showToast("發送失敗，請確認 Email 是否正確或已註冊", "error");
+        console.error("重設密碼錯誤:", error);
+        
+        // 判斷錯誤類型給予更精準的提示
+        if (error.code === 'auth/user-not-found') {
+            showToast("發送失敗：找不到此 Email，請確認是否已註冊！", "error");
+        } else if (error.code === 'auth/invalid-email') {
+            showToast("發送失敗：Email 格式錯誤！", "error");
+        } else {
+            showToast("發送失敗，請稍後再試", "error");
+        }
     }
-}
+};
 
 function submitHeroName() {
     const newName = document.getElementById('new-hero-name-input').value.trim();
@@ -1461,7 +1472,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(saveGame, 5000);
 
 
-    document.getElementById('btn-forgot-password')?.addEventListener('click', resetPassword);
 
 
     document.getElementById('btn-login')?.addEventListener('click', login);
