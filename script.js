@@ -1008,13 +1008,6 @@ function checkPetCollision(p) {
     }
 }
 
-
-// 綁定監聽器 (確保重複呼叫時不會造成多重觸發)
-canvas.removeEventListener('mousedown', handleInteraction);
-canvas.removeEventListener('touchstart', handleInteraction);
-canvas.addEventListener('mousedown', handleInteraction);
-canvas.addEventListener('touchstart', handleInteraction, { passive: false });
-
 // === 2. 遊戲迴圈 ===
 function tick() {
     gameState.energy = Math.max(0, gameState.energy - 0.04);
