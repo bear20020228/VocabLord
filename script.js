@@ -187,8 +187,9 @@ async function syncLoadFromCloud() {
 }
 
 function saveGame() { 
-    if (currentUser) {
-        localStorage.setItem('vocabMaster_' + currentUser, JSON.stringify(gameState));
+    // 確保是用 uid 這個唯一字串當 Key
+    if (currentUser && currentUser.uid) {
+        localStorage.setItem('vocabMaster_' + currentUser.uid, JSON.stringify(gameState));
         syncSaveToCloud(); 
     }
 }
@@ -211,6 +212,7 @@ async function register() {
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('world-map-screen').classList.remove('hidden');
         document.getElementById('name-prompt-modal').classList.remove('hidden');
+        document.getElementById('newebpay-footer').style.display = 'none'; // 👈 加在這裡
 
     } catch (error) {
         if (error.code === 'auth/email-already-in-use') showToast("註冊失敗：這個 Email 已經被註冊過囉！", "error");
@@ -236,6 +238,7 @@ async function login() {
         
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('world-map-screen').classList.remove('hidden');
+        document.getElementById('newebpay-footer').style.display = 'none'; // 👈 加在這裡
 
         if (!gameState.playerName) {
             document.getElementById('name-prompt-modal').classList.remove('hidden');
@@ -264,6 +267,9 @@ window.resetPassword = async function() {
     if (!email) return showToast("⚠️ 請先在上方輸入你的 Email，再點擊忘記密碼！", "error");
 
     try {
+
+        // 👇 加上這行，強制告訴 Firebase 寄送繁體中文信件
+        window.auth.languageCode = 'zh-TW';
         await sendPasswordResetEmail(window.auth, email);
         showToast("📧 已寄出重設密碼信！請去信箱收信。", "success");
     } catch (error) {
@@ -1601,6 +1607,23 @@ window.auth.onAuthStateChanged(async (user) => {
     }
 });
 
+// 當偵測到使用者登入時
+const uid = user.uid;
+const localData = localStorage.getItem('vocabMaster_' + uid);
+
+if (localData) {
+    // 只有找到對應這個 UID 的資料才載入
+    gameState = JSON.parse(localData);
+    renderGame(); 
+} else {
+    // 如果是全新帳號，記得把 gameState 重置成初始狀態
+    // 否則它會殘留上一個人的資料
+    resetGameState(); 
+}
+
+
+
 migrateGrid();
 resize(); 
 updateUI();
+
