@@ -10,7 +10,7 @@ const ctx = canvas.getContext('2d');
 
 // 替換原本的 let COLS = 10; let ROWS = 10;
 let COLS = window.innerWidth <= 1024 ? 8 : 10;
-let ROWS = window.innerWidth <= 1024 ? 13 : 10;
+let ROWS = window.innerWidth <= 1024 ? 12 : 10;
 let TILE_SIZE = 64;
 let offsetX = 0;
 let offsetY = 0;

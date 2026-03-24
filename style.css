@@ -1,6 +1,15 @@
 /* ================= 基礎設定 ================= */
-body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #3e2723; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: manipulation; }
-.hidden { display: none !important; }
+/* ================= 基礎設定 ================= */
+body, html { 
+    margin: 0; padding: 0; 
+    width: 100%; height: 100%; 
+    overflow: hidden; 
+    background: #3e2723; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    touch-action: manipulation;
+    overscroll-behavior: none; /* 🚫 封鎖蘋果/安卓的邊緣拉扯回彈特效 */
+    position: fixed; /* 🚫 鎖死整個螢幕，絕對不允許拖曳 */
+}.hidden { display: none !important; }
 
 /* ================= 登入畫面 ================= */
 #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #4e342e 0%, #3e2723 100%); display: flex; justify-content: center; align-items: center; z-index: 1000; }
