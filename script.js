@@ -113,6 +113,14 @@ const PET_DATA = {
     cat: { id: 'cat', title: '比比拉布', cost: 50000, desc: '💰50,000 (Pro解鎖)' } 
 };
 
+
+// 🛍️ 道具與卷軸資料 (抽卡使用)
+const ITEM_DATA = {
+    'renameScroll': { name: '傳說改名卷軸', icon: '📜' },
+    'potion': { name: '催熟藥水', icon: '🧪' },
+    'shield': { name: '連勝保護傘', icon: '🛡️' }
+};
+
 const SEED_DATA = {
     carrot: { id: 'carrot', name: '胡蘿蔔', cost: 50, sellPrice: 100, unlockLv: 1, exp: 35, growthFactor: 1.0 },
     tomato: { id: 'tomato', name: '番茄', cost: 80, sellPrice: 200, unlockLv: 5, exp: 100, growthFactor: 0.7 },
@@ -451,13 +459,15 @@ async function verifyLicenseKey() {
 
 function changeDifficulty() { 
     const selector = document.getElementById('in-game-difficulty');
+    const advancedModes = document.getElementById('en-advanced-modes'); // 👈 抓取我們剛剛命名的區塊
     
-    // 選到台語時切換領域
     if (selector.value === "tw") {
         gameState.currentRealm = 'taiwanese';
+        if (advancedModes) advancedModes.style.display = 'none'; // 台語模式隱藏進階按鈕
     } else {
         gameState.currentRealm = 'english';
-        // 原本的英文版 Pro 檢查邏輯
+        if (advancedModes) advancedModes.style.display = 'flex'; // 英文模式顯示按鈕
+        
         if (selector.value !== "1" && !gameState.isPro) { 
             showPaywall("中高級單字庫為專業版專屬！"); 
             selector.value = gameState.difficulty; 
@@ -689,21 +699,23 @@ async function generateOptionsAsync(grid, baseReward) {
         
         if (o.isCorrect) b.dataset.correct = "true";
         
-        b.addEventListener('click', () => {
+   b.addEventListener('click', () => {
             Array.from(grid.children).forEach(btn => btn.disabled = true);
             if (!gameState.wordStats[currentWord.w]) gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 };
 
             if(o.isCorrect) { 
-                b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
+                // 改用 CSS class，移除原本一長串的 style
+                b.classList.add('quiz-btn-correct');
 
                 gameState.combo = (gameState.combo || 0) + 1;
                 // 👇 新增這段：30連勝的專業版推銷
-            if (!gameState.isPro && gameState.combo === 30 && gameState.difficulty === "1") {
-                setTimeout(() => {
-                    showPaywall("🔥 太神啦！\n你已經連續答對 30 題了！\n現在的L1、L2國中單字對你來說根本小菜一碟。\n\n要不要升級專業版，立刻解鎖 L3、L4 高中單字，讓自己的實力更上一層樓？");
-                }, 500); // 延遲半秒，讓玩家先看到答對特效再跳彈窗
-            }
-            // 👆 新增結束
+                if (!gameState.isPro && gameState.combo === 30 && gameState.difficulty === "1") {
+                    setTimeout(() => {
+                        showPaywall("🔥 太神啦！\n你已經連續答對 30 題了！\n現在的L1、L2國中單字對你來說根本小菜一碟。\n\n要不要升級專業版，立刻解鎖 L3、L4 高中單字，讓自己的實力更上一層樓？");
+                    }, 500); // 延遲半秒，讓玩家先看到答對特效再跳彈窗
+                }
+                // 👆 新增結束
+                
                 let comboMultiplier = Math.min(2.0, 1.0 + Math.floor(gameState.combo / 5) * 0.1);
                 let finalReward = Math.floor((modeActive ? baseReward * 2 : baseReward) * comboMultiplier);
                 
@@ -746,47 +758,49 @@ async function generateOptionsAsync(grid, baseReward) {
                 if (isCrit && actuallyGrew) showToast("⚡ 爆擊！作物瘋狂生長！", "success");
                 saveGame(); updateUI();
                 setTimeout(() => { 
-                    if (gameState.combo > 0 && gameState.combo % 10 === 0) startFeverMode(); 
+                    // ✨ 加上判斷，只有英文模式才觸發字根狂熱
+                    if (gameState.combo > 0 && gameState.combo % 10 === 0 && gameState.currentRealm !== 'taiwanese') startFeverMode(); 
                     else loadQuestion(); 
-                }, 400); 
+                }, 400);
             } else {
-                b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
+                // 答錯的處理，改用 CSS class
+                b.classList.add('quiz-btn-wrong');
                 let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
-                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+                if (correctBtn) { correctBtn.classList.add('quiz-btn-correct'); }
 
                 let finalizeWrongAnswer = () => {
-    gameState.energy = Math.max(0, gameState.energy - 10);
-    currentWord.weight += 10;
-    gameState.wordStats[currentWord.w].wrong += 1;
-    gameState.wordStats[currentWord.w].consecutive = 0;
+                    gameState.energy = Math.max(0, gameState.energy - 10);
+                    currentWord.weight += 10;
+                    gameState.wordStats[currentWord.w].wrong += 1;
+                    gameState.wordStats[currentWord.w].consecutive = 0;
 
-    // ✨ 關鍵分類邏輯
-    const isTw = (gameState.currentRealm === 'taiwanese');
-    const mistakePool = isTw ? gameState.mistakesTw : gameState.mistakes;
+                    // ✨ 關鍵分類邏輯
+                    const isTw = (gameState.currentRealm === 'taiwanese');
+                    const mistakePool = isTw ? gameState.mistakesTw : gameState.mistakes;
 
-    if (!mistakePool[currentWord.w]) {
-        mistakePool[currentWord.w] = { 
-            w: currentWord.w, 
-            c: currentWord.c, 
-            lv: currentWord.lv || 1, 
-            p: currentWord.p || "", // 台文多存一個拼音
-            count: 0 
-        };
-    }
-    mistakePool[currentWord.w].count += 1;
+                    if (!mistakePool[currentWord.w]) {
+                        mistakePool[currentWord.w] = { 
+                            w: currentWord.w, 
+                            c: currentWord.c, 
+                            lv: currentWord.lv || 1, 
+                            p: currentWord.p || "", // 台文多存一個拼音
+                            count: 0 
+                        };
+                    }
+                    mistakePool[currentWord.w].count += 1;
 
-    saveGame();
-    updateUI();
+                    saveGame();
+                    updateUI();
 
-    setTimeout(() => {
-        // 判斷是否需要強制複習 (這裡你可以決定要看哪一區的錯題數)
-        if (Object.keys(gameState.mistakes).length >= 30 || Object.keys(gameState.mistakesTw).length >= 30) {
-            startForcedReview();
-        } else {
-            loadQuestion();
-        }
-    }, 2000);
-};
+                    setTimeout(() => {
+                        // 判斷是否需要強制複習 (這裡你可以決定要看哪一區的錯題數)
+                        if (Object.keys(gameState.mistakes).length >= 30 || Object.keys(gameState.mistakesTw).length >= 30) {
+                            startForcedReview();
+                        } else {
+                            loadQuestion();
+                        }
+                    }, 2000);
+                };
 
                 if (gameState.inventory['shield'] > 0) {
                     gameState.inventory['shield']--;
@@ -807,24 +821,40 @@ async function generateOptionsAsync(grid, baseReward) {
 
     let idkBtn = document.createElement('button');
     idkBtn.innerText = "👀 我不會 (看答案)";
-    idkBtn.style.gridColumn = "span 2"; idkBtn.style.padding = "10px"; idkBtn.style.fontSize = "0.95em"; 
-    idkBtn.style.backgroundColor = "#f8f9fa"; idkBtn.style.color = "#7f8c8d"; idkBtn.style.border = "2px dashed #bdc3c7"; 
-    idkBtn.style.boxShadow = "none";
+    // 改用 CSS class，讓程式碼更乾淨
+    idkBtn.className = "quiz-btn-idk";
+    
     idkBtn.addEventListener('click', () => {
         Array.from(grid.children).forEach(btn => btn.disabled = true);
         let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
-        if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+        
+        // 這裡也換成剛剛設定好的答對綠色 class，取代原本又臭又長的 style
+        if (correctBtn) { correctBtn.classList.add('quiz-btn-correct'); }
 
         let finalizeIdkAnswer = () => {
             currentWord.weight += 10; 
             if (!gameState.wordStats[currentWord.w]) gameState.wordStats[currentWord.w] = { correct: 0, wrong: 0, consecutive: 0 };
             gameState.wordStats[currentWord.w].wrong += 1; gameState.wordStats[currentWord.w].consecutive = 0; 
-            if (!gameState.mistakes[currentWord.w]) gameState.mistakes[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv, count: 0 };
-            gameState.mistakes[currentWord.w].count += 1; saveGame(); updateUI();
+            
+            // ✨ 修復：台文與英文錯題本徹底分流
+            const isTw = (gameState.currentRealm === 'taiwanese');
+            const mistakePool = isTw ? gameState.mistakesTw : gameState.mistakes;
+
+            if (!mistakePool[currentWord.w]) {
+                mistakePool[currentWord.w] = { 
+                    w: currentWord.w, c: currentWord.c, lv: currentWord.lv || 1, p: currentWord.p || "", count: 0 
+                };
+            }
+            mistakePool[currentWord.w].count += 1; 
+            
+            saveGame(); updateUI();
 
             setTimeout(() => { 
-                if (Object.keys(gameState.mistakes).length >= 30) startForcedReview();
-                else loadQuestion(); 
+                if (Object.keys(gameState.mistakes).length >= 30 || Object.keys(gameState.mistakesTw).length >= 30) {
+                    startForcedReview();
+                } else {
+                    loadQuestion(); 
+                }
             }, 2000); 
         };
 
@@ -832,7 +862,7 @@ async function generateOptionsAsync(grid, baseReward) {
             gameState.inventory['shield']--; showToast("💡 已標記！(🛡️保護傘抵銷連勝中斷)", "info");
             finalizeIdkAnswer();
         } else {
-            if (gameState.combo > 0 && gameState.coins >= 1500) {
+            if (gameState.combo > 0 && gameState.coins >= 15000) {
                 showShieldPromptModal("idk", finalizeIdkAnswer);
             } else { 
                 gameState.combo = 0; showToast("💡 已標記！連勝歸零", "info"); 
@@ -843,6 +873,7 @@ async function generateOptionsAsync(grid, baseReward) {
     grid.appendChild(idkBtn);
 }
 
+// ✨ 核心重構：狂熱模式
 // ✨ 核心重構：狂熱模式
 function startFeverMode() {
     isFeverMode = true;
@@ -871,8 +902,9 @@ function startFeverMode() {
     opts.forEach(o => {
         const b = document.createElement('button');
         b.innerText = o;
-        b.style.padding = "18px 12px"; b.style.fontSize = "1.15em"; b.style.fontWeight = "bold"; 
-        b.style.border = "2px solid #bdc3c7"; b.style.borderRadius = "14px"; b.style.cursor = "pointer"; b.style.backgroundColor = "white"; b.style.color = "#2c3e50";
+        
+        // ✨ 改用剛剛寫好的 CSS class
+        b.className = "special-quiz-btn"; 
         if (o === q.meaning) b.dataset.correct = "true"; 
         
         b.addEventListener('click', () => {
@@ -880,7 +912,10 @@ function startFeverMode() {
             if (!gameState.wordStats[wordKey]) gameState.wordStats[wordKey] = { correct: 0, wrong: 0, consecutive: 0 };
 
             if (o === q.meaning) {
-                b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60"; showToast("✨ 狂熱成功！全農場作物大暴增！", "success");
+                // ✨ 答對：套用綠色 class
+                b.classList.add('quiz-btn-correct'); 
+                
+                showToast("✨ 狂熱成功！全農場作物大暴增！", "success");
                 gameState.farmTiles.forEach(r => r.forEach(t => { if(t.plant && t.progress < 100) { t.progress = Math.min(100, t.progress + 20); } }));
                 gameState.coins += 200; 
                 gameState.wordStats[wordKey].correct += 1; gameState.wordStats[wordKey].consecutive += 1;
@@ -889,9 +924,10 @@ function startFeverMode() {
                 }
                 saveGame(); updateUI(); setTimeout(endFeverMode, 1500);
             } else {
-                b.style.backgroundColor = "#e74c3c"; b.style.color = "white"; b.style.borderColor = "#c0392b";
+                // ✨ 答錯：套用紅色 class
+                b.classList.add('quiz-btn-wrong');
                 let correctBtn = Array.from(grid.children).find(btn => btn.dataset.correct === "true");
-                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+                if (correctBtn) { correctBtn.classList.add('quiz-btn-correct'); }
                 
                 showToast("❌ 狂熱失敗！已加入錯題本", "error"); gameState.combo = 0; 
                 gameState.wordStats[wordKey].wrong += 1; gameState.wordStats[wordKey].consecutive = 0;
@@ -954,29 +990,46 @@ function loadForcedReviewQuestion() {
         failSafe++;
     }
 
-    const grid = document.getElementById('forced-options-grid'); grid.innerHTML = '';
+    const grid = document.getElementById('forced-options-grid'); 
+    grid.innerHTML = '';
+    
     opts.sort(() => Math.random() - 0.5).forEach(o => {
         let btn = document.createElement('button');
         btn.innerText = o;
-        btn.style.padding = "15px"; btn.style.fontSize = "1.1em"; btn.style.fontWeight = "bold"; btn.style.border = "2px solid #bdc3c7"; btn.style.borderRadius = "12px"; btn.style.backgroundColor = "white"; btn.style.cursor = "pointer"; btn.style.color = "#2c3e50";
+        
+        // ✨ 改用 CSS class
+        btn.className = "special-quiz-btn"; 
         if (o === currentForcedWord.c) btn.dataset.correct = "true";
 
         btn.addEventListener('click', () => {
             Array.from(grid.children).forEach(b => b.disabled = true);
+            
             if (o === currentForcedWord.c) {
-                btn.style.backgroundColor = "#2ecc71"; btn.style.color = "white"; btn.style.borderColor = "#27ae60"; forcedReviewQueue.shift(); 
+                // ✨ 答對：套用綠色 class
+                btn.classList.add('quiz-btn-correct'); 
+                
+                forcedReviewQueue.shift(); 
                 if (gameState.mistakes[currentForcedWord.w]) {
                     gameState.mistakes[currentForcedWord.w].count--;
                     if (gameState.mistakes[currentForcedWord.w].count <= 0) delete gameState.mistakes[currentForcedWord.w];
                 }
-                saveGame(); setTimeout(loadForcedReviewQuestion, 500); 
+                saveGame(); 
+                setTimeout(loadForcedReviewQuestion, 500); 
             } else {
-                btn.style.backgroundColor = "#e74c3c"; btn.style.color = "white"; btn.style.borderColor = "#c0392b";
+                // ✨ 答錯：套用紅色 class
+                btn.classList.add('quiz-btn-wrong');
                 let correctBtn = Array.from(grid.children).find(b => b.dataset.correct === "true");
-                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
-                showToast("❌ 答錯了！請記住正確的中文意思。", "error"); let w = forcedReviewQueue.shift(); forcedReviewQueue.push(w); 
+                if (correctBtn) { correctBtn.classList.add('quiz-btn-correct'); }
                 
-                let nextBtn = document.createElement('button'); nextBtn.id = 'forced-next-btn'; nextBtn.innerText = "記住了，下一題 ➔"; nextBtn.style.marginTop = "20px"; nextBtn.style.padding = "15px"; nextBtn.style.fontSize = "1.2em"; nextBtn.style.fontWeight = "bold"; nextBtn.style.backgroundColor = "#34495e"; nextBtn.style.color = "white"; nextBtn.style.border = "none"; nextBtn.style.borderRadius = "12px"; nextBtn.style.cursor = "pointer"; nextBtn.style.width = "100%"; nextBtn.style.boxShadow = "0 5px 0 #2c3e50";
+                showToast("❌ 答錯了！請記住正確的中文意思。", "error"); 
+                let w = forcedReviewQueue.shift(); 
+                forcedReviewQueue.push(w); 
+                
+                let nextBtn = document.createElement('button'); 
+                nextBtn.id = 'forced-next-btn'; 
+                nextBtn.innerText = "記住了，下一題 ➔"; 
+                // ✨ 下一題按鈕也改用 class
+                nextBtn.className = "forced-next-btn"; 
                 nextBtn.addEventListener('click', loadForcedReviewQuestion); 
                 grid.parentElement.appendChild(nextBtn);
             }
@@ -1147,9 +1200,14 @@ function renderGraduatedList() {
             return { w, cons, lv, meaning, isGrad };
         });
 
-    if (statsArr.length === 0) { list.style.display = "block"; list.innerHTML = "<div class='empty-review'>還沒有解鎖任何圖鑑喔！<br>快去答題收集星星吧！🌟</div>"; return; }
+    if (statsArr.length === 0) { 
+        list.style.display = "block"; 
+        list.innerHTML = "<div class='empty-review'>還沒有解鎖任何圖鑑喔！<br>快去答題收集星星吧！🌟</div>"; 
+        return; 
+    }
     
-    list.style.display = "block"; let grouped = {};
+    list.style.display = "block"; 
+    let grouped = {};
     statsArr.forEach(item => { if (!grouped[item.lv]) grouped[item.lv] = []; grouped[item.lv].push(item); });
 
     Object.keys(grouped).sort((a, b) => a - b).forEach(lv => {
@@ -1157,17 +1215,26 @@ function renderGraduatedList() {
         
         let header = document.createElement('h3');
         header.className = 'review-lv-header';
-        if(lv == 7) { header.style.background = "linear-gradient(90deg, #c0392b, #e74c3c)"; header.style.color = "white"; header.style.borderLeft = "5px solid #f1c40f"; header.innerText = "🔥 狂熱字源學 (精通)"; }
-        else { header.style.background = "linear-gradient(90deg, #d35400, #e67e22)"; header.style.color = "white"; header.style.borderLeft = "5px solid #f1c40f"; header.innerText = `Level ${lv} 單字圖鑑`; }
+        if(lv == 7) { 
+            header.style.background = "linear-gradient(90deg, #c0392b, #e74c3c)"; 
+            header.style.color = "white"; 
+            header.style.borderLeft = "5px solid #f1c40f"; 
+            header.innerText = "🔥 狂熱字源學 (精通)"; 
+        } else { 
+            header.style.background = "linear-gradient(90deg, #d35400, #e67e22)"; 
+            header.style.color = "white"; 
+            header.style.borderLeft = "5px solid #f1c40f"; 
+            header.innerText = `Level ${lv} 單字圖鑑`; 
+        }
         list.appendChild(header);
 
         let gridDiv = document.createElement('div');
-        gridDiv.style.display = "grid"; gridDiv.style.gridTemplateColumns = "1fr 1fr"; gridDiv.style.gap = "15px"; gridDiv.style.paddingBottom = "20px"; gridDiv.style.paddingTop = "10px";
+        gridDiv.className = 'graduated-grid'; // ✨ 改用 CSS class
 
         grouped[lv].forEach(item => {
             let starHTML = ""; let bgStyle = ""; let borderColor = "";
             
-            // 1. 判斷是否為炫彩卡
+            // 1. 判斷是否為炫彩卡，並動態設定對應的卡片顏色
             let isChroma = item.isGrad && item.isGrad.chroma;
 
             if (isChroma) { 
@@ -1181,24 +1248,28 @@ function renderGraduatedList() {
             }
 
             let card = document.createElement('div');
-            card.style.background = bgStyle; card.style.border = `2px solid ${borderColor}`; card.style.padding = "15px 10px"; card.style.borderRadius = "16px"; card.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)"; card.style.display = "flex"; card.style.flexDirection = "column"; card.style.justifyContent = "space-between"; card.style.alignItems = "center"; card.style.textAlign = "center"; card.style.position = "relative"; card.style.marginTop = "5px";
+            card.className = 'graduated-card'; // ✨ 改用 CSS class
+            if (isChroma) card.classList.add('chroma-card');
             
-            // 2. 如果是炫彩卡，加上外框發光動畫的 class
-            if (isChroma) {
-                card.classList.add('chroma-card');
-            }
+            card.style.background = bgStyle; 
+            card.style.border = `2px solid ${borderColor}`;
 
-            // 3. 在單字 div 裡動態加入 dex-word-title，讓字體變成彩色流動
+            // ✨ HTML 結構徹底清理，排版樣式全部交給 CSS classes
             card.innerHTML = `
-                <div style="position: absolute; top: -12px; left: -5px; background: #34495e; color: white; font-size: 0.75em; font-weight: bold; padding: 4px 10px; border-radius: 10px; border: 2px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${lv == 7 ? '字根' : 'Lv.' + item.lv}</div>
-                <div style="margin-top: 8px;"><div class="${isChroma ? 'dex-word-title' : ''}" style="font-size: 1.3em; font-weight: 900; color: #2c3e50; margin-bottom: 5px; word-break: break-word;">${item.w}</div><div style="font-size: 0.85em; color: #7f8c8d; font-weight: bold; margin-bottom: 10px; line-height: 1.3;">${item.meaning}</div></div>
-                <div style="width: 100%;"><div style="font-size: 0.85em; font-weight: bold; padding: 4px; border-radius: 8px; background: white; border: 1px dashed ${borderColor}; color: #333; margin-bottom: 8px;">${starHTML}</div></div>
+                <div class="graduated-lv-badge" style="border: 2px solid ${borderColor};">${lv == 7 ? '字根' : 'Lv.' + item.lv}</div>
+                <div style="margin-top: 8px;">
+                    <div class="graduated-word ${isChroma ? 'dex-word-title' : ''}">${item.w}</div>
+                    <div class="graduated-meaning">${item.meaning}</div>
+                </div>
+                <div style="width: 100%;">
+                    <div class="graduated-star-badge" style="border: 1px dashed ${borderColor};">${starHTML}</div>
+                </div>
             `;
 
             if (item.isGrad) {
                 let btn = document.createElement('button');
                 btn.innerText = '🔄 召回重練';
-                btn.style.width = "100%"; btn.style.background = "#e74c3c"; btn.style.color = "white"; btn.style.border = "none"; btn.style.padding = "8px"; btn.style.borderRadius = "10px"; btn.style.fontWeight = "bold"; btn.style.cursor = "pointer"; btn.style.fontSize = "0.85em"; btn.style.boxShadow = "0 3px 0 #c0392b"; btn.style.transition = "0.1s";
+                btn.className = 'btn-revive'; // ✨ 改用 CSS class
                 btn.addEventListener('click', () => reviveWord(item.w));
                 card.querySelector('div:last-child').appendChild(btn);
             }
@@ -1223,8 +1294,9 @@ function moveAllPets() {
     gameState.petsOwned.forEach(pid => {
         let p = activePets[pid]; let stat = gameState.petStats[pid]; let speed = getPetSpeed(stat.lv);
         if (gameState.energy >= 90) speed *= 3.0; 
-        if (gameState.energy <= 0) { p.dir = 'Dead'; return; }
-        if (p.state === 'idle') {
+// ✨ 如果開啟兒童模式，動物沒體力時只會趴下睡覺 (Down)，不會出現叉叉眼睛 (Dead)
+        if (gameState.energy <= 0) { p.dir = gameState.kidsMode ? 'Down' : 'Dead'; return; }
+                if (p.state === 'idle') {
              p.timer--;
               if (p.timer <= 0) { 
                 p.targetX = Math.random()*(COLS-1); 
@@ -1355,9 +1427,31 @@ function processFeeding(type, amount) {
 
 function feedPig(type) { processFeeding(type, 1); }
 function feedAllOf(type) { processFeeding(type, gameState.inventory[type] || 0); }
-function sellPlant(type) { if (gameState.inventory[type] > 0) { gameState.inventory[type]--; gameState.coins += SEED_DATA[type].sellPrice; updateUI(); saveGame(); togglePanel('inventory'); } }
-function sellAllOf(type) { let count = gameState.inventory[type] || 0; if (count > 0) { gameState.coins += count * SEED_DATA[type].sellPrice; gameState.inventory[type] = 0; updateUI(); saveGame(); togglePanel('inventory'); } }
+// 💰 單筆賣出作物
+function sellPlant(type) { 
+    if (gameState.inventory[type] > 0) { 
+        gameState.inventory[type]--; // 扣除背包道具
+        gameState.coins += SEED_DATA[type].sellPrice; // 增加金幣
+        
+        saveGame(); 
+        updateUI(); 
+        togglePanel('inventory'); // 刷新背包面板
+    } 
+}
 
+// 💰 一鍵賣出全部同類作物
+function sellAllOf(type) { 
+    let count = gameState.inventory[type] || 0; 
+    
+    if (count > 0) { 
+        gameState.coins += count * SEED_DATA[type].sellPrice; // 計算總收益
+        gameState.inventory[type] = 0; // 清空該作物庫存
+        
+        saveGame(); 
+        updateUI(); 
+        togglePanel('inventory'); // 刷新背包面板
+    } 
+}
 function autoHarvest() {
     let count = 0;
     gameState.farmTiles.forEach(r => r.forEach(t => {
@@ -1409,128 +1503,196 @@ function autoPlant() {
 
 function equipSeed(type) { gameState.currentSeed = type; saveGame(); updateUI(); togglePanel('shop'); }
 function switchPet(petId) { gameState.currentPet = petId; updateUI(); togglePanel(); saveGame(); }
+// 🐾 購買或切換寵物
 function buyPet(petId) {
-    if (petId === 'cat' && !gameState.isPro) { showPaywall("解鎖最強寵物「比比拉布」是專業版專屬福利喔！"); togglePanel(); return; }
+    // 1. 專業版權限檢查
+    if (petId === 'cat' && !gameState.isPro) { 
+        showPaywall("解鎖最強寵物「比比拉布」是專業版專屬福利喔！"); 
+        togglePanel(); 
+        return; 
+    }
+    
     let cost = PET_DATA[petId].cost;
-    if (gameState.coins >= cost) { gameState.coins -= cost; gameState.petsOwned.push(petId); switchPet(petId); loadQuestion(); } 
-    else showToast(`金幣不足！需要 💰${cost}`, "error"); 
+    
+    // 2. 扣款與發放邏輯
+    if (gameState.coins >= cost) { 
+        gameState.coins -= cost; // 扣錢
+        gameState.petsOwned.push(petId); // 獲得寵物
+        
+        switchPet(petId); 
+        loadQuestion(); 
+        showToast(`🎉 成功招募 ${PET_DATA[petId].title}！`, "success");
+    } else {
+        showToast(`💰 金幣不足！需要 ${cost}`, "error"); 
+    }
 }
 
+// 🎛️ 面板總管：負責控制開關與指派任務
 function togglePanel(type) {
     const p = document.getElementById('floating-panel');
     const panelBody = document.getElementById('panel-body');
     if (!type) { p.classList.add('hidden'); return; }
+    
     p.classList.remove('hidden');
     panelBody.innerHTML = ''; 
 
     if (type === 'inventory') {
-        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
-        
-        let harvestBtn = document.createElement('button');
-        harvestBtn.innerText = '🚜 一鍵收成';
-        harvestBtn.style = "width:100%; margin-bottom:10px; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;";
-        harvestBtn.addEventListener('click', autoHarvest);
-        panelBody.appendChild(harvestBtn);
-        
-        let hasItem = false;
-        if (gameState.inventory['renameScroll'] > 0) {
-            hasItem = true;
-            let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;";
-            div.innerHTML = `<span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span>`;
-            let btn = document.createElement('button'); btn.innerText = '✨ 改變命運 (使用)'; btn.style = "width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;";
-            btn.addEventListener('click', useRenameScroll);
-            div.appendChild(btn); panelBody.appendChild(div);
-        }
-        if (gameState.inventory['potion'] > 0) {
-            hasItem = true;
-            let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px dashed #2ecc71;";
-            div.innerHTML = `<span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #27ae60;">🧪 催熟藥水 x ${gameState.inventory['potion']}</span>`;
-            let btn = document.createElement('button'); btn.innerText = '✨ 對全農場使用'; btn.style = "width:100%; background:#2ecc71; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #27ae60;";
-            btn.addEventListener('click', usePotion);
-            div.appendChild(btn); panelBody.appendChild(div);
-        }
-        if (gameState.inventory['shield'] > 0) {
-            hasItem = true;
-            let div = document.createElement('div'); div.className = 'shop-item'; div.style = "background: #e8f8f5; border: 2px solid #1abc9c; margin-bottom: 10px;";
-            div.innerHTML = `<span style="font-weight: bold; color: #16a085;">🛡️ 連勝保護傘 x ${gameState.inventory['shield']}<br><small style="color:#7f8c8d;">(答錯時自動消耗)</small></span>`;
-            panelBody.appendChild(div);
-        }
-        for (let key in SEED_DATA) {
-            let count = gameState.inventory[key] || 0;
-            if (count > 0) { 
-                hasItem = true;
-                let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;";
-                div.innerHTML = `<span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #2c3e50;">${SEED_DATA[key].name} x ${count}</span>`;
-                
-                let btnGroup = document.createElement('div'); btnGroup.style = "display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;";
-                
-                let b1 = document.createElement('button'); b1.innerText = '餵 1'; b1.style.background = '#8bc34a'; b1.addEventListener('click', () => feedPig(key));
-                let b2 = document.createElement('button'); b2.innerText = '全餵'; b2.style.background = '#27ae60'; b2.addEventListener('click', () => feedAllOf(key));
-                let b3 = document.createElement('button'); b3.innerText = '賣 1'; b3.style.background = '#f39c12'; b3.addEventListener('click', () => sellPlant(key));
-                let b4 = document.createElement('button'); b4.innerText = '全賣'; b4.style.background = '#e74c3c'; b4.addEventListener('click', () => sellAllOf(key));
-                
-                btnGroup.append(b1, b2, b3, b4); div.appendChild(btnGroup); panelBody.appendChild(div);
-            }
-        }
-        if(!hasItem) panelBody.innerHTML += "<p style='text-align:center; color:#777; margin-top:20px;'>背包空空的</p>";
-
-   } else if (type === 'shop') {
-        const pTitle = document.getElementById('panel-title'); 
-        if(pTitle) pTitle.innerText = '領主商城';
-        
-        let title1 = document.createElement('h4'); 
-        title1.style = "margin: 0 0 10px 0; color: #d35400; border-bottom: 2px solid #eee;"; 
-        title1.innerText = "✨ 傳說金蛋 (大獎改名卷軸)"; 
-        panelBody.appendChild(title1);
-
-        let gachaDiv = document.createElement('div'); 
-        gachaDiv.className = 'shop-item'; 
-        gachaDiv.style = "flex-direction:column; background:#fff8e1; border:2px solid #f1c40f; padding:15px; border-radius:12px;";
-        
-        gachaDiv.innerHTML = `
-            <img src="assets/golden_egg.png" style="width:100px; margin-bottom:10px;">
-            <div style="display:flex; gap:10px; width:100%;">
-                <button onclick="drawGacha(1)" style="flex:1; background:linear-gradient(to bottom, #f39c12, #e67e22); color:white; border-radius:10px; padding:10px; border:none; font-weight:bold; cursor:pointer;">單抽 💰5000</button>
-                <button onclick="drawGacha(10)" style="flex:1; background:linear-gradient(to bottom, #e67e22, #d35400); color:white; border-radius:10px; padding:10px; border:none; font-weight:bold; cursor:pointer;">十抽 💰45000</button>
-            </div>
-        `;
-        panelBody.appendChild(gachaDiv);
-
-        let title2 = document.createElement('h4'); 
-        title2.style = "margin: 20px 0 10px 0; color: #2980b9; border-bottom: 2px solid #eee;"; 
-        title2.innerText = "🛠️ 實用道具"; 
-        panelBody.appendChild(title2);
-
-        let shieldDiv = document.createElement('div'); shieldDiv.className = 'shop-item'; shieldDiv.style.marginBottom = "15px";
-        shieldDiv.innerHTML = `<span>🛡️ 連勝保護傘 (💰15000)<br><small style="color:#7f8c8d;">答錯時免除一次連勝歸零</small></span>`;
-        let shieldBtn = document.createElement('button'); shieldBtn.innerText = "購買"; shieldBtn.style = "background: #3498db; color: white;";
-        shieldBtn.addEventListener('click', () => buyItem('shield', 15000)); shieldDiv.appendChild(shieldBtn); panelBody.appendChild(shieldDiv);
-
+        renderInventoryPanel(panelBody);
+    } else if (type === 'shop') {
+        renderShopPanel(panelBody);
     } else if (type === 'pet') {
-        const pTitle = document.getElementById('panel-title'); if(pTitle) pTitle.innerText = '寵物招募';
-        for (let key in PET_DATA) {
-            let pData = PET_DATA[key]; let isOwned = gameState.petsOwned.includes(key); let isCurrent = gameState.currentPet === key;
-            let petDiv = document.createElement('div'); petDiv.className = 'shop-item'; petDiv.style.background = isOwned ? (isCurrent ? '#e8f5e9' : 'transparent') : '#fdf2e9';
-            petDiv.innerHTML = `<span style="font-weight:bold;">${pData.title} <br><small>${isOwned ? 'Lv.' + gameState.petStats[key].lv : pData.desc}</small></span>`;
-            let btn = document.createElement('button'); 
-            
-            if (isOwned) {
-                btn.innerText = isCurrent ? '指定' : '選擇'; btn.style.background = isCurrent ? '#999' : '#3498db';
-                if(isCurrent) btn.disabled = true;
-                btn.addEventListener('click', () => switchPet(key));
-            } else {
-                btn.innerText = (key === 'cat' && !gameState.isPro) ? "🔒 PRO專屬" : `💰${pData.cost}`;
-                btn.style.background = (key === 'cat' && !gameState.isPro) ? "#95a5a6" : "#e74c3c";
-                btn.addEventListener('click', () => buyPet(key));
-            }
-            petDiv.appendChild(btn); panelBody.appendChild(petDiv);
-        }
+        renderPetPanel(panelBody);
     }
 }
 
+// 🎒 專屬渲染：背包面板
+function renderInventoryPanel(panelBody) {
+    const pTitle = document.getElementById('panel-title'); 
+    if(pTitle) pTitle.innerText = '背包：' + PET_DATA[gameState.currentPet].title;
+    
+    let harvestBtn = document.createElement('button');
+    harvestBtn.innerText = '🚜 一鍵收成';
+    harvestBtn.style = "width:100%; margin-bottom:10px; background:#9b59b6; padding:10px; border-radius:8px; color:white; font-weight:bold; cursor:pointer; border:none;";
+    harvestBtn.addEventListener('click', autoHarvest);
+    panelBody.appendChild(harvestBtn);
+    
+    let hasItem = false;
+    
+    if (gameState.inventory['renameScroll'] > 0) {
+        hasItem = true;
+        let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px solid #f1c40f;";
+        div.innerHTML = `<span style="width: 100%; font-weight: 900; margin-bottom: 10px; display: block; font-size: 1.1em; color: #8e44ad;">📜 傳說改名卷軸 x ${gameState.inventory['renameScroll']}</span>`;
+        let btn = document.createElement('button'); btn.innerText = '✨ 改變命運 (使用)'; btn.style = "width:100%; background:linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 4px 0 #732d91; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;";
+        btn.addEventListener('click', useRenameScroll);
+        div.appendChild(btn); panelBody.appendChild(div);
+    }
+    
+    if (gameState.inventory['potion'] > 0) {
+        hasItem = true;
+        let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 2px dashed #2ecc71;";
+        div.innerHTML = `<span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #27ae60;">🧪 催熟藥水 x ${gameState.inventory['potion']}</span>`;
+        let btn = document.createElement('button'); btn.innerText = '✨ 對全農場使用'; btn.style = "width:100%; background:#2ecc71; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #27ae60;";
+        btn.addEventListener('click', usePotion);
+        div.appendChild(btn); panelBody.appendChild(div);
+    }
+    
+    if (gameState.inventory['shield'] > 0) {
+        hasItem = true;
+        let div = document.createElement('div'); div.className = 'shop-item'; div.style = "background: #e8f8f5; border: 2px solid #1abc9c; margin-bottom: 10px;";
+        div.innerHTML = `<span style="font-weight: bold; color: #16a085;">🛡️ 連勝保護傘 x ${gameState.inventory['shield']}<br><small style="color:#7f8c8d;">(答錯時自動消耗)</small></span>`;
+        panelBody.appendChild(div);
+    }
+    
+    for (let key in SEED_DATA) {
+        let count = gameState.inventory[key] || 0;
+        if (count > 0) { 
+            hasItem = true;
+            let div = document.createElement('div'); div.className = 'shop-item'; div.style = "flex-wrap: wrap; margin-bottom: 10px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;";
+            div.innerHTML = `<span style="width: 100%; font-weight: bold; margin-bottom: 10px; display: block; font-size: 1.1em; color: #2c3e50;">${SEED_DATA[key].name} x ${count}</span>`;
+            
+            let btnGroup = document.createElement('div'); btnGroup.style = "display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;";
+            
+            let b1 = document.createElement('button'); b1.innerText = '餵 1'; b1.style.background = '#8bc34a'; b1.addEventListener('click', () => feedPig(key));
+            let b2 = document.createElement('button'); b2.innerText = '全餵'; b2.style.background = '#27ae60'; b2.addEventListener('click', () => feedAllOf(key));
+            let b3 = document.createElement('button'); b3.innerText = '賣 1'; b3.style.background = '#f39c12'; b3.addEventListener('click', () => sellPlant(key));
+            let b4 = document.createElement('button'); b4.innerText = '全賣'; b4.style.background = '#e74c3c'; b4.addEventListener('click', () => sellAllOf(key));
+            
+            btnGroup.append(b1, b2, b3, b4); div.appendChild(btnGroup); panelBody.appendChild(div);
+        }
+    }
+    
+    if(!hasItem) panelBody.innerHTML += "<p style='text-align:center; color:#777; margin-top:20px;'>背包空空的</p>";
+}
+
+// 🛒 專屬渲染：商城面板
+// 🛒 專屬渲染：商城面板 (✨ 清除醜蛋圖片版 ✨)
+function renderShopPanel(panelBody) {
+    const pTitle = document.getElementById('panel-title'); 
+    if(pTitle) pTitle.innerText = '領主商城';
+    
+    let title1 = document.createElement('h4'); 
+    title1.style = "margin: 0 0 10px 0; color: #d35400; border-bottom: 2px solid #eee;"; 
+    title1.innerText = "✨ 傳說金蛋 (神秘大獎、寵物等你抽)"; 
+    panelBody.appendChild(title1);
+
+    let gachaDiv = document.createElement('div'); 
+    gachaDiv.className = 'shop-item'; 
+    // 重新排版：移除 column，縮小內距，讓按鈕看起來更整潔
+    gachaDiv.style = "background:#fff8e1; border:2px solid #f1c40f; padding:15px; border-radius:12px; box-shadow: 0 4px 15px rgba(241, 196, 15, 0.2);";
+    
+    // 💡 核心：將原本的 <img> 標籤移除，只保留按鈕區塊
+    gachaDiv.innerHTML = `
+        <div style="display:flex; gap:12px; width:100%; justify-content: center;">
+            <button onclick="drawGacha(1)" style="flex:1; max-width: 150px; background:linear-gradient(135deg, #f39c12, #e67e22); color:white; border-radius:10px; padding:12px; border:none; font-weight:bold; cursor:pointer; box-shadow: 0 4px 0 #d35400; transition: 0.1s;">單抽 💰5000</button>
+            <button onclick="drawGacha(10)" style="flex:1; max-width: 150px; background:linear-gradient(135deg, #e67e22, #d35400); color:white; border-radius:10px; padding:12px; border:none; font-weight:bold; cursor:pointer; box-shadow: 0 4px 0 #c0392b; transition: 0.1s;">十抽 💰45000</button>
+        </div>
+    `;
+    
+    // 幫按鈕加上點擊效果 (向下按)
+    gachaDiv.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('mousedown', () => { btn.style.transform = 'translateY(4px)'; btn.style.boxShadow = 'none'; });
+        btn.addEventListener('mouseup', () => { btn.style.transform = 'translateY(0)'; btn.style.boxShadow = btn.innerText.includes('十抽') ? '0 4px 0 #c0392b' : '0 4px 0 #d35400'; });
+    });
+
+    panelBody.appendChild(gachaDiv);
+
+    // 道具區塊 (保持不變)
+    let title2 = document.createElement('h4'); 
+    title2.style = "margin: 20px 0 10px 0; color: #2980b9; border-bottom: 2px solid #eee;"; 
+    title2.innerText = "🛠️ 實用道具"; 
+    panelBody.appendChild(title2);
+
+    let shieldDiv = document.createElement('div'); shieldDiv.className = 'shop-item'; shieldDiv.style.marginBottom = "15px";
+    shieldDiv.innerHTML = `<span>🛡️ 連勝保護傘 (💰15000)<br><small style="color:#7f8c8d;">答錯時免除一次連勝歸零</small></span>`;
+    let shieldBtn = document.createElement('button'); shieldBtn.innerText = "購買"; shieldBtn.style = "background: #3498db; color: white;";
+    shieldBtn.addEventListener('click', () => buyItem('shield', 15000)); 
+    shieldDiv.appendChild(shieldBtn); 
+    panelBody.appendChild(shieldDiv);
+}
+
+// 🐾 專屬渲染：寵物招募面板
+function renderPetPanel(panelBody) {
+    const pTitle = document.getElementById('panel-title'); 
+    if(pTitle) pTitle.innerText = '寵物招募';
+    
+    for (let key in PET_DATA) {
+        let pData = PET_DATA[key]; 
+        let isOwned = gameState.petsOwned.includes(key); 
+        let isCurrent = gameState.currentPet === key;
+        
+        let petDiv = document.createElement('div'); 
+        petDiv.className = 'shop-item'; 
+        petDiv.style.background = isOwned ? (isCurrent ? '#e8f5e9' : 'transparent') : '#fdf2e9';
+        petDiv.innerHTML = `<span style="font-weight:bold;">${pData.title} <br><small>${isOwned ? 'Lv.' + gameState.petStats[key].lv : pData.desc}</small></span>`;
+        
+        let btn = document.createElement('button'); 
+        if (isOwned) {
+            btn.innerText = isCurrent ? '指定' : '選擇'; 
+            btn.style.background = isCurrent ? '#999' : '#3498db';
+            if(isCurrent) btn.disabled = true;
+            btn.addEventListener('click', () => switchPet(key));
+        } else {
+            btn.innerText = (key === 'cat' && !gameState.isPro) ? "🔒 PRO專屬" : `💰${pData.cost}`;
+            btn.style.background = (key === 'cat' && !gameState.isPro) ? "#95a5a6" : "#e74c3c";
+            btn.addEventListener('click', () => buyPet(key));
+        }
+        petDiv.appendChild(btn); 
+        panelBody.appendChild(petDiv);
+    }
+}
+
+// 🛒 購買一般道具
 function buyItem(itemKey, cost) {
-    if (gameState.coins >= cost) { gameState.coins -= cost; gameState.inventory[itemKey] = (gameState.inventory[itemKey] || 0) + 1; saveGame(); updateUI(); showToast(`🛍️ 購買成功！已放入背包。`, "success"); } 
-    else showToast("💰 金幣不足！", "error");
+    if (gameState.coins >= cost) { 
+        gameState.coins -= cost; // 扣錢
+        gameState.inventory[itemKey] = (gameState.inventory[itemKey] || 0) + 1; // 放入背包
+        
+        saveGame(); 
+        updateUI(); 
+        showToast(`🛍️ 購買成功！已放入背包。`, "success"); 
+    } else {
+        showToast("💰 金幣不足！", "error");
+    }
 }
 
 function usePotion() {
@@ -1550,54 +1712,93 @@ window.drawGacha = function(count) {
     const cost = (count === 10) ? 45000 : 5000;
     if (gameState.coins < cost) return showToast("💰 金幣不足！", "error");
     
+    // 1. 扣除金幣
     gameState.coins -= cost;
     saveGame(); 
     updateUI(); 
+    if (typeof togglePanel === 'function') togglePanel(); // 關閉商城面板，讓視野淨空
 
-    const modal = document.getElementById('gacha-modal');
-    const eggImg = document.getElementById('gacha-egg-img');
-    const resultBox = document.getElementById('gacha-result-box');
-    const resultList = document.getElementById('gacha-result-list');
+    // 2. 準備抽卡結果 (✨ 完全保留你的機率與金幣/道具邏輯 ✨)
+    let results = [];
+    for(let i=0; i<count; i++) {
+        let r = Math.random();
+        // 0.2%：極致稀有 (UR) - 改名卷軸
+        if (r < 0.0005)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
+        // 2%：高級道具 (SSR) - 藥水
+        else if (r < 0.022)  results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       
+        // 7%：實用道具 (SR) - 保護傘
+        else if (r < 0.092)  results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});       
+        // 3%：大獎金 (1萬) - 翻倍
+        else if (r < 0.122)  results.push({name: "1萬金幣", icon: "💰", type: "coin", val: 10000});          
+        // 10%：保本獎 (5千) - 平手
+        else if (r < 0.222)  results.push({name: "5千金幣", icon: "💵", type: "coin", val: 5000});           
+        // 35%：小虧獎 (1千)
+        else if (r < 0.572)  results.push({name: "1千金幣", icon: "🪙", type: "coin", val: 1000});           
+        // 42.8%：血虧獎 (200) - 增加挫折感
+        else                 results.push({name: "200金幣", icon: "🙉", type: "coin", val: 200});            
+    }
 
-    modal.classList.remove('hidden');
-    eggImg.classList.remove('hidden');
-    eggImg.classList.add('gacha-shaking'); 
-    resultBox.classList.add('hidden'); 
-    resultList.innerHTML = ''; 
+    // 3. 🌟 金蛋發慌並變大爆炸的動畫序列 🌟
+    
+    // a) 創建全螢幕的黑色半透明動畫層
+    const animOverlay = document.createElement('div');
+    animOverlay.id = 'gacha-animation-overlay';
+    animOverlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:18000; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 0.3s;";
+    document.body.appendChild(animOverlay);
+    
+    // 淡入動畫層
+    setTimeout(() => { animOverlay.style.opacity = '1'; }, 10);
 
+    // b) 放入一顆金蛋
+    const goldenEgg = document.createElement('img');
+    goldenEgg.src = 'assets/golden_egg.png';
+    goldenEgg.style = "width: 150px; transform-origin: center;";
+    animOverlay.appendChild(goldenEgg);
+
+    // c) 觸發發慌變大動畫
     setTimeout(() => {
-        eggImg.classList.remove('gacha-shaking');
-        eggImg.classList.add('hidden'); 
+        goldenEgg.classList.add('egg-panic-grow');
+    }, 100);
+
+    // d) 2.8秒後金蛋爆炸，閃光並顯示結果
+    setTimeout(() => {
+        // e) 閃光特效
+        const flashOverlay = document.createElement('div');
+        flashOverlay.className = 'gacha-explosion-overlay gacha-flash-effect';
+        document.body.appendChild(flashOverlay);
+
+        // f) 移除金蛋動畫層
+        animOverlay.remove();
         
+        // g) 顯示原本的結算視窗
+        const modal = document.getElementById('gacha-modal');
+        const resultBox = document.getElementById('gacha-result-box');
+        const resultList = document.getElementById('gacha-result-list');
+        
+        // 隱藏舊的靜態蛋
+        document.getElementById('gacha-egg-img').classList.add('hidden');
+        
+        modal.classList.remove('hidden'); 
         resultBox.classList.remove('hidden'); 
         resultBox.style.display = "block"; 
+        resultList.innerHTML = ''; 
 
-        let results = [];
-        for(let i=0; i<count; i++) {
-            let r = Math.random();
-            // 0.2%：極致稀有 (UR) - 改名卷軸
-            if (r < 0.0005)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
-            // 2%：高級道具 (SSR) - 藥水
-            else if (r < 0.022) results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       
-            // 7%：實用道具 (SR) - 保護傘
-            else if (r < 0.092) results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});       
-            // 3%：大獎金 (1萬) - 翻倍
-            else if (r < 0.122) results.push({name: "1萬金幣", icon: "💰", type: "coin", val: 10000});          
-            // 10%：保本獎 (5千) - 平手
-            else if (r < 0.222) results.push({name: "5千金幣", icon: "💵", type: "coin", val: 5000});           
-            // 35%：小虧獎 (1千)
-            else if (r < 0.572) results.push({name: "1千金幣", icon: "🪙", type: "coin", val: 1000});           
-            // 42.8%：血虧獎 (200) - 增加挫折感
-            else                results.push({name: "200金幣", icon: "💩", type: "coin", val: 200});            
-        }
-
+        // h) 渲染放大的 Emoji 獎勵結果
         results.forEach(res => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'gacha-result-item';
-            itemDiv.style = "text-align:center; padding:5px; background:#f9f9f9; border-radius:8px;";
-            itemDiv.innerHTML = `<div style="font-size:1.5em;">${res.icon}</div><div style="font-size:0.6em; font-weight:bold; margin-top:5px;">${res.name}</div>`;
+            itemDiv.style = "text-align:center; padding:15px 5px; background:#f9f9f9; border-radius:12px; border: 2px solid #eee;";
+            
+            // 特殊高光：如果是 UR 改名卷軸，給個金色閃耀框
+            if (res.key === 'renameScroll') {
+                itemDiv.style.background = "#fffbea";
+                itemDiv.style.borderColor = "#f1c40f";
+            }
+
+            itemDiv.innerHTML = `<div style="font-size:3em; line-height:1.2; margin-bottom:5px; text-shadow: 0 4px 10px rgba(0,0,0,0.1);">${res.icon}</div><div style="font-size:0.9em; font-weight:bold; color:#2c3e50;">${res.name}</div>`;
             resultList.appendChild(itemDiv);
 
+            // 發放金幣或道具到背包
             if(res.type === "coin") gameState.coins += res.val;
             else if(res.type === "item") {
                 gameState.inventory[res.key] = (gameState.inventory[res.key] || 0) + 1;
@@ -1606,7 +1807,11 @@ window.drawGacha = function(count) {
 
         saveGame(); 
         updateUI();
-    }, 1200); 
+
+        // j) 移除閃光層
+        setTimeout(() => { flashOverlay.remove(); }, 300);
+
+    }, 2800); 
 };
 
 function useRenameScroll() {
@@ -1642,6 +1847,16 @@ function useRenameScroll() {
 }
 
 function updateUI() {
+    const kidsToggle = document.getElementById('kids-mode-toggle'); 
+    if (kidsToggle) {
+        kidsToggle.checked = !!gameState.kidsMode;
+        // 根據狀態設定 body 的 class
+        if (gameState.kidsMode) document.body.classList.add('kids-mode-active');
+        else document.body.classList.remove('kids-mode-active');
+    }
+
+
+
     const coinEl = document.getElementById('coin-count'); if(coinEl) coinEl.innerText = Math.floor(gameState.coins);
     const proBadge = document.getElementById('pro-badge');
     if (gameState.isPro) { document.body.classList.add('is-pro'); if (proBadge) proBadge.classList.remove('hidden'); } 
@@ -2046,10 +2261,15 @@ window.auth.onAuthStateChanged(async (user) => {
 
 
 
-// ================= 天堂複習訓練 =================
+// ================= 天堂複習訓練 (台/英 雙語系分離版) =================
 function startHeavenTraining() {
     forcedReviewQueue = [];
-    let pool = globalVocab.filter(v => v.lv == gameState.difficulty || v.lv == 1).sort(() => Math.random() - 0.5);
+    
+    // ✨ 1. 判斷當前領域，決定要抽哪一個題庫
+    const activePool = (gameState.currentRealm === 'taiwanese') ? twVocab : globalVocab;
+    
+    // 找出符合難度的單字，如果是台語就全抓 (因為台語目前可能沒有嚴格分難度)
+    let pool = activePool.filter(v => gameState.currentRealm === 'taiwanese' || v.lv == gameState.difficulty || v.lv == 1).sort(() => Math.random() - 0.5);
     for(let i=0; i<3; i++) if(pool[i]) forcedReviewQueue.push(pool[i]); // 抽3題防作弊
     
     let modal = document.getElementById('forced-review-modal');
@@ -2057,7 +2277,7 @@ function startHeavenTraining() {
     modal.style.background = "rgba(241, 196, 15, 0.95)"; // 天堂金黃色背景
     
     let content = modal.querySelector('.modal-content'); content.style.borderColor = "#f39c12";
-    let title = content.querySelector('div'); title.style.background = "#f39c12"; title.innerText = "😇 天堂防呆特訓 😇 (測驗你有沒有亂按)";
+    let title = content.querySelector('div'); title.style.background = "#f39c12"; title.innerText = "😇 天堂訓練 😇 (你真的學會了嗎？)";
     document.getElementById('forced-progress').style.color = "#d35400";
     document.getElementById('forced-word-display').style.color = "#e67e22";
     
@@ -2079,15 +2299,26 @@ function loadHeavenReviewQuestion() {
         gameState.coins += 1000; saveGame(); updateUI(); return;
     }
 
+    // ✨ 2. 判斷當前領域 (用來產生錯誤選項)
+    const activePool = (gameState.currentRealm === 'taiwanese') ? twVocab : globalVocab;
+
     currentForcedWord = forcedReviewQueue[0];
-    document.getElementById('forced-word-display').innerText = currentForcedWord.w;
+    
+    // ✨ 3. 如果是台語，顯示拼音
+    const wordDisplay = document.getElementById('forced-word-display');
+    if (gameState.currentRealm === 'taiwanese' && currentForcedWord.p) {
+        wordDisplay.innerHTML = `${currentForcedWord.w}<br><span style="font-size: 0.5em; color: #d35400;">${currentForcedWord.p}</span>`;
+    } else {
+        wordDisplay.innerText = currentForcedWord.w;
+    }
+    
     document.getElementById('forced-progress').innerText = `剩餘：${forcedReviewQueue.length} 題`;
     let existingNextBtn = document.getElementById('forced-next-btn'); if (existingNextBtn) existingNextBtn.remove();
 
     let opts = [currentForcedWord.c];
     let failSafe = 0;
     while(opts.length < 4 && failSafe < 100) {
-        let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
+        let r = activePool[Math.floor(Math.random() * activePool.length)].c;
         if(!opts.includes(r) && r !== undefined) opts.push(r); failSafe++;
     }
 
@@ -2115,6 +2346,18 @@ function loadHeavenReviewQuestion() {
         grid.appendChild(btn);
     });
 }
+
+// 綁定兒童模式開關 (包含控制 CSS)
+document.getElementById('kids-mode-toggle')?.addEventListener('change', (e) => {
+    gameState.kidsMode = e.target.checked;
+    if (gameState.kidsMode) {
+        document.body.classList.add('kids-mode-active');
+    } else {
+        document.body.classList.remove('kids-mode-active');
+    }
+    saveGame();
+});
+
 
 migrateGrid();
 resize(); 
