@@ -1708,6 +1708,8 @@ window.closeGacha = function() {
     if (typeof togglePanel === 'function') togglePanel('shop'); 
 };
 
+// ================= ✨ 核心重構：十連抽金蛋發慌爆炸動畫 (Emoji & ID 分離版) ✨ =================
+
 window.drawGacha = function(count) {
     const cost = (count === 10) ? 45000 : 5000;
     if (gameState.coins < cost) return showToast("💰 金幣不足！", "error");
@@ -1716,9 +1718,9 @@ window.drawGacha = function(count) {
     gameState.coins -= cost;
     saveGame(); 
     updateUI(); 
-    if (typeof togglePanel === 'function') togglePanel(); // 關閉商城面板，讓視野淨空
+    if (typeof togglePanel === 'function') togglePanel(); // 關閉商城面板
 
-    // 2. 準備抽卡結果 (✨ 完全保留你的機率與金幣/道具邏輯 ✨)
+    // 2. 準備抽卡結果 (✨ 完全保留你的機率邏輯 ✨)
     let results = [];
     for(let i=0; i<count; i++) {
         let r = Math.random();
@@ -1735,7 +1737,7 @@ window.drawGacha = function(count) {
         // 35%：小虧獎 (1千)
         else if (r < 0.572)  results.push({name: "1千金幣", icon: "🪙", type: "coin", val: 1000});           
         // 42.8%：血虧獎 (200) - 增加挫折感
-        else                 results.push({name: "200金幣", icon: "🙉", type: "coin", val: 200});            
+        else                 results.push({name: "200金幣", icon: "💩", type: "coin", val: 200});            
     }
 
     // 3. 🌟 金蛋發慌並變大爆炸的動畫序列 🌟
@@ -1751,7 +1753,7 @@ window.drawGacha = function(count) {
 
     // b) 放入一顆金蛋
     const goldenEgg = document.createElement('img');
-    goldenEgg.src = 'assets/golden_egg.png';
+    goldenEgg.src = 'assets/golden_egg.png'; // 這裡維持金蛋圖片
     goldenEgg.style = "width: 150px; transform-origin: center;";
     animOverlay.appendChild(goldenEgg);
 
@@ -1770,23 +1772,20 @@ window.drawGacha = function(count) {
         // f) 移除金蛋動畫層
         animOverlay.remove();
         
-        // g) 顯示原本的結算視窗
-        const modal = document.getElementById('gacha-modal');
-        const resultBox = document.getElementById('gacha-result-box');
-        const resultList = document.getElementById('gacha-result-list');
+        // g) 🌟 顯示全新的、分離結構的結算視窗 🌟
+        const modalBg = document.getElementById('gacha-modal');
+        const resultModal = document.getElementById('gacha-result-modal');
+        const resultGrid = document.getElementById('gacha-results-grid');
         
-        // 隱藏舊的靜態蛋
-        document.getElementById('gacha-egg-img').classList.add('hidden');
-        
-        modal.classList.remove('hidden'); 
-        resultBox.classList.remove('hidden'); 
-        resultBox.style.display = "block"; 
-        resultList.innerHTML = ''; 
+        modalBg.classList.remove('hidden'); 
+        resultModal.classList.remove('hidden'); 
+        resultGrid.innerHTML = ''; 
 
         // h) 渲染放大的 Emoji 獎勵結果
         results.forEach(res => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'gacha-result-item';
+            // 將圖片換成放大的 Emoji
             itemDiv.style = "text-align:center; padding:15px 5px; background:#f9f9f9; border-radius:12px; border: 2px solid #eee;";
             
             // 特殊高光：如果是 UR 改名卷軸，給個金色閃耀框
@@ -1795,8 +1794,9 @@ window.drawGacha = function(count) {
                 itemDiv.style.borderColor = "#f1c40f";
             }
 
+            // HTML 結構徹底清理，排版樣式全部交給 CSS classes
             itemDiv.innerHTML = `<div style="font-size:3em; line-height:1.2; margin-bottom:5px; text-shadow: 0 4px 10px rgba(0,0,0,0.1);">${res.icon}</div><div style="font-size:0.9em; font-weight:bold; color:#2c3e50;">${res.name}</div>`;
-            resultList.appendChild(itemDiv);
+            resultGrid.appendChild(itemDiv);
 
             // 發放金幣或道具到背包
             if(res.type === "coin") gameState.coins += res.val;

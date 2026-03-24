@@ -1182,48 +1182,62 @@ body.kids-mode-active #energy-container {
 }
 
 
-/* ================= 🛠️ 結算畫面「歪斜」終極修復 (正確 ID 版) ================= */
-#gacha-modal:not(.hidden) {
-    display: flex !important; /* ✨ 關鍵修復：只有在沒有 hidden 的時候才啟用 flex */
-}
+/* ================= 🛠️ Gacha 結構重整：終極置中與手機適配修復 ================= */
 
+/* 父層背景層 (維持固定定位，不啟用 flex，避免隱藏時卡住畫面) */
 #gacha-modal {
-    position: fixed !important;
+    position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85) !important;
-    justify-content: center !important; /* 水平置中 */
-    align-items: center !important; /* 垂直置中 */
+    background: rgba(0, 0, 0, 0.85);
     z-index: 25000 !important;
 }
 
-#gacha-result-box {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* 🌟 核心：結果視窗的定位層 (只有在顯示時才啟用 flex 置中) */
+#gacha-result-modal:not(.hidden) {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 
-#gacha-result-box .modal-content {
-    width: 90% !important;
-    max-width: 600px !important;
-    margin: 0 !important; /* 清除干擾 */
-    padding: 25px;
+/* 🌟 視窗內容層 (解決歪斜與超出畫面的關鍵) */
+#gacha-result-modal .modal-content {
+    /* 1. 清除所有定位與干擾 */
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    
+    /* 2. 手機版適配 (不超出螢幕) */
+    width: 90% !important; /* ✨ 在手機上佔螢幕寬度的 90% */
+    max-width: 500px !important; /* ✨ 電腦版最大寬度 500px */
+    max-height: 80vh !important; /* ✨ 限制最大高度，避免卡住關閉按鈕 */
+    
+    /* 3. 確保內部內容可以滾動 */
+    overflow-y: auto !important;
+    padding: 20px !important;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    text-align: center;
 }
 
-#gacha-result-list {
+/* 🌟 獎勵結果格 (手機版一行 2 個，電腦版一行 5 個) */
+#gacha-results-grid {
     width: 100% !important;
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important; /* 手機版一排 2 個 */
+    grid-template-columns: repeat(2, 1fr) !important; /* 核心修復：手機版一行 2 個，絕對不會超出螢幕 */
     gap: 12px !important;
-    margin-top: 20px !important;
-    max-height: 50vh;
-    overflow-y: auto;
+    margin-top: 10px;
 }
 
+/* 當螢幕大於 480px 時，自動變成一行 5 個 */
 @media (min-width: 480px) {
-    #gacha-result-list { grid-template-columns: repeat(5, 1fr) !important; /* 電腦版一排 5 個 */ }
+    #gacha-results-grid {
+        grid-template-columns: repeat(5, 1fr) !important;
+    }
 }
+
 
 /* ================= ✨ 金蛋發慌爆炸動畫 (Gacha Animation) ================= */
 
