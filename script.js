@@ -1576,7 +1576,7 @@ window.drawGacha = function(count) {
         for(let i=0; i<count; i++) {
             let r = Math.random();
             // 0.2%：極致稀有 (UR) - 改名卷軸
-            if (r < 0.002)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
+            if (r < 0.0005)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
             // 2%：高級道具 (SSR) - 藥水
             else if (r < 0.022) results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       
             // 7%：實用道具 (SR) - 保護傘

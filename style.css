@@ -513,40 +513,76 @@ body.is-pro #ui-overlays { left: 20px; }
 .seed-label { font-weight: bold; color: #2c3e50; font-size: 0.9em; flex: 1; }
 .seed-price { font-size: 0.75em; color: #e67e22; font-weight: 900; }
 
-/* 🌟 金蛋動畫調整 */
+/* 🌟 金蛋動畫最終修復版 */
 #gacha-egg-img {
-    width: 220px !important; /* 變大顆一點 */
-    /* 支點設在蛋的中間 */
+    position: fixed;         /* 關鍵：定死在螢幕上 */
+    top: 50%;                /* 垂直置中 */
+    left: 50%;               /* 水平置中 */
+    width: 220px !important; 
+    z-index: 10001;          /* 確保在最上層 */
+    
+    /* 核心：先移動到正中間，再進行縮放或旋轉 */
+    transform: translate(-50%, -50%) rotate(0deg); 
     transform-origin: center center !important; 
 }
 
 .gacha-shaking {
     display: block !important;
-    /* 搖晃頻率減慢：從原本的 0.15s 改為 1.5s，ease-in-out 讓動作更柔和 */
+    /* 1.5s 的柔和擺動很好看，保留你的設定 */
     animation: egg-slow-swing 1.5s infinite ease-in-out;
 }
 
+/* ⚠️ 這裡最重要：Keyframes 每一格都必須帶上 translate(-50%, -50%) */
+/* 否則蛋會邊搖邊瞬移回左上角 */
 @keyframes egg-slow-swing {
-    0% { transform: translate(-50%, -50%) rotate(-10deg); }
-    50% { transform: translate(-50%, -50%) rotate(10deg); }
+    0%   { transform: translate(-50%, -50%) rotate(-10deg); }
+    50%  { transform: translate(-50%, -50%) rotate(10deg); }
     100% { transform: translate(-50%, -50%) rotate(-10deg); }
 }
 
-/* Gacha 修正：確保結果區在最上層 */
+
+/* 🌟 Gacha 修正：確保結果區絕對置中 */
 #gacha-result-box {
     position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
+    top: 50%;
+    left: 50%;
+    /* 核心：這行能讓方框的中心點對齊螢幕中心 */
+    transform: translate(-50%, -50%); 
     z-index: 10001;
     width: 90%;
     max-width: 450px;
+    background: white;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
 }
 
+/* 🌟 結果列表：自動適應螢幕寬度 */
 #gacha-result-list {
     display: grid;
-    grid-template-columns: repeat(5, 1fr); /* 十抽時每列五個 */
-    gap: 10px;
+    /* 預設在手機上：每列 2 個或 3 個，避免太擠 */
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 12px;
     margin: 15px 0;
+    max-height: 60vh; /* 防止獎勵太多超過螢幕 */
+    overflow-y: auto;
+    padding: 5px;
+}
+
+/* 當螢幕寬度超過 480px (電腦或平板) 時，才顯示 5 欄 */
+@media (min-width: 480px) {
+    #gacha-result-list {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* 單個獎勵項目的美化 */
+.gacha-result-item {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 10px 5px;
+    text-align: center;
+    border: 1px solid #eee;
 }
 
 /* 左下角伸縮按鈕樣式 */
