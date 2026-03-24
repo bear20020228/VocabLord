@@ -1,0 +1,131 @@
+/* ================= 史詩戰鬥介面 (battle.css) ================= */
+
+#rpg-battle-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #111; z-index: 10000;
+    display: flex; flex-direction: column; overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.rpg-top-bar {
+    position: absolute; top: 0; left: 0; width: 100%;
+    padding: 15px 20px; box-sizing: border-box;
+    display: flex; justify-content: space-between; align-items: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+}
+
+#btn-flee-rpg {
+    background: rgba(0,0,0,0.6); color: white; border: 2px solid #7f8c8d;
+    padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer;
+}
+
+.rpg-stage-info { color: #f1c40f; font-weight: 900; text-shadow: 0 2px 4px black; letter-spacing: 1px; }
+
+/* --- 上半部：戰鬥演出區 --- */
+#rpg-stage {
+    flex: 5; position: relative;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: inset 0 -30px 50px rgba(0,0,0,0.8);
+}
+
+#rpg-enemy-ui {
+    position: absolute; top: 70px; width: 80%; max-width: 400px;
+    text-align: center;
+}
+
+#rpg-enemy-name { color: white; font-weight: 900; font-size: 1.2em; text-shadow: 0 2px 5px black; }
+
+.rpg-hp-bg {
+    width: 100%; height: 18px; background: rgba(0,0,0,0.6);
+    border: 2px solid #555; border-radius: 10px; margin: 5px 0; overflow: hidden;
+}
+
+#rpg-enemy-hp-fill {
+    height: 100%; width: 100%; background: linear-gradient(90deg, #e74c3c, #c0392b);
+    transition: width 0.3s ease-out;
+}
+
+#rpg-hp-text { color: #f1c40f; font-weight: bold; font-size: 0.9em; text-shadow: 0 1px 2px black; }
+
+#rpg-enemy-sprite {
+    max-width: 60%; max-height: 50%; object-fit: contain;
+    filter: drop-shadow(0 15px 15px rgba(0,0,0,0.6));
+    animation: monsterBreathe 3s ease-in-out infinite;
+}
+
+@keyframes monsterBreathe {
+    0%, 100% { transform: scale(1) translateY(0); }
+    50% { transform: scale(1.02) translateY(-10px); }
+}
+
+.monster-hurt {
+    animation: monsterShake 0.4s both !important;
+    filter: drop-shadow(0 0 30px red) invert(20%) sepia(100%) saturate(500%) !important;
+}
+
+@keyframes monsterShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-15px) rotate(-5deg); }
+    40%, 80% { transform: translateX(15px) rotate(5deg); }
+}
+
+#rpg-fx-layer {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 250px; height: 250px;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+    pointer-events: none; z-index: 5;
+}
+
+/* --- 下半部：操作面板 --- */
+#rpg-control-panel {
+    flex: 4; background: #1a1a2e; border-top: 4px solid #f1c40f;
+    display: flex; flex-direction: column; box-sizing: border-box;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
+}
+
+#rpg-team-skills {
+    display: flex; align-items: center; padding: 15px 20px;
+    background: rgba(0,0,0,0.4); border-bottom: 2px solid #2c3e50;
+}
+
+.rpg-member {
+    position: relative; width: 60px; height: 60px; border-radius: 12px;
+    border: 3px solid #7f8c8d; background: #2c3e50; cursor: pointer; transition: 0.2s;
+}
+
+.rpg-member:active { transform: scale(0.9); }
+
+.member-avatar { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+.skill-cd {
+    position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    background: #e74c3c; color: white; font-size: 0.75em; font-weight: 900;
+    padding: 2px 8px; border-radius: 10px; border: 2px solid white; white-space: nowrap;
+}
+
+/* 技能可發動時的特效 */
+.skill-ready { border-color: #f1c40f !important; box-shadow: 0 0 15px #f1c40f; animation: skillPulse 1s infinite; }
+.skill-ready .skill-cd { background: #f1c40f; color: #d35400; content: "READY"; }
+
+@keyframes skillPulse { 0%, 100% { box-shadow: 0 0 10px #f1c40f; } 50% { box-shadow: 0 0 25px #f1c40f; } }
+
+.rpg-team-info { margin-left: 15px; }
+
+#rpg-question-area { flex: 1; padding: 20px; text-align: center; overflow-y: auto; }
+#rpg-word-meaning { color: white; font-size: 2em; margin: 0 0 10px 0; font-weight: 900; }
+#rpg-word-hint { background: #2c3e50; color: #f1c40f; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; border-left: 4px solid #f39c12; }
+
+#rpg-spell-input {
+    width: 100%; padding: 15px; font-size: 1.8em; text-align: center;
+    background: #0f0f1a; color: white; border: 3px solid #34495e;
+    border-radius: 12px; font-weight: 900; letter-spacing: 2px;
+    outline: none; transition: 0.2s; box-sizing: border-box;
+}
+#rpg-spell-input:focus { border-color: #9b59b6; box-shadow: 0 0 15px rgba(155, 89, 182, 0.5); }
+
+.rpg-actions { display: flex; padding: 15px 20px; gap: 15px; background: rgba(0,0,0,0.3); }
+#rpg-btn-help { flex: 1; padding: 15px; background: #34495e; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 1.1em; cursor: pointer; }
+#rpg-btn-attack { flex: 2; padding: 15px; background: linear-gradient(135deg, #e67e22, #d35400); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 1.3em; cursor: pointer; box-shadow: 0 5px 0 #a04000; }
+#rpg-btn-attack:active { transform: translateY(5px); box-shadow: none; }

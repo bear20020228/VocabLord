@@ -8,9 +8,10 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthState
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let COLS = 10;
-let ROWS = 10;
-let TILE_SIZE = 64; 
+// 替換原本的 let COLS = 10; let ROWS = 10;
+let COLS = window.innerWidth <= 1024 ? 8 : 10;
+let ROWS = window.innerWidth <= 1024 ? 13 : 10;
+let TILE_SIZE = 64;
 let offsetX = 0;
 let offsetY = 0;
 // 🌤️ 雲朵系統參數
@@ -187,12 +188,42 @@ async function syncLoadFromCloud() {
 }
 
 function saveGame() { 
-    // 確保是用 uid 這個唯一字串當 Key
-    if (currentUser && currentUser.uid) {
-        localStorage.setItem('vocabMaster_' + currentUser.uid, JSON.stringify(gameState));
+    // 改用 window.auth.currentUser.uid 確保每個帳號都有專屬的存檔 Key
+    if (window.auth && window.auth.currentUser) {
+        localStorage.setItem('vocabMaster_' + window.auth.currentUser.uid, JSON.stringify(gameState));
         syncSaveToCloud(); 
     }
 }
+
+function resetGameState() {
+    gameState = {
+        coins: 100, energy: 100, combo: 0,
+        inventory: { carrot: 0, tomato: 0, radish: 0 },
+        farmTiles: Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 }))),
+        difficulty: "1", currentPet: "pig", 
+        currentSeed: "carrot", 
+        petsOwned: ["pig"], 
+        petStats: { pig: { lv: 1, exp: 0 }, fox: { lv: 1, exp: 0 }, cat: { lv: 1, exp: 0 } },
+        isPro: false, mistakes: {}, wordStats: {}, graduated: {},
+        playerName: "" 
+    };
+    currentUser = "";
+}
+
+window.auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        resetGameState(); // 關鍵：登入時先清空上一位玩家的殘留資料
+        const hasCloudData = await syncLoadFromCloud();
+        if (!hasCloudData) {
+            const localData = localStorage.getItem('vocabMaster_' + user.uid);
+            if (localData) Object.assign(gameState, JSON.parse(localData));
+        }
+        migrateGrid();
+        updateUI();
+    } else {
+        resetGameState();
+    }
+});
 
 async function register() {
     const email = document.getElementById('email-input').value.trim();
@@ -566,6 +597,13 @@ async function generateOptionsAsync(grid, baseReward) {
                 b.style.backgroundColor = "#2ecc71"; b.style.color = "white"; b.style.borderColor = "#27ae60";
 
                 gameState.combo = (gameState.combo || 0) + 1;
+                // 👇 新增這段：30連勝的專業版推銷
+            if (!gameState.isPro && gameState.combo === 30 && gameState.difficulty === "1") {
+                setTimeout(() => {
+                    showPaywall("🔥 太神啦！\n你已經連續答對 30 題了！\n現在的L1、L2國中單字對你來說根本小菜一碟。\n\n要不要升級專業版，立刻解鎖 L3、L4 高中單字，讓自己的實力更上一層樓？");
+                }, 500); // 延遲半秒，讓玩家先看到答對特效再跳彈窗
+            }
+            // 👆 新增結束
                 let comboMultiplier = Math.min(2.0, 1.0 + Math.floor(gameState.combo / 5) * 0.1);
                 let finalReward = Math.floor((modeActive ? baseReward * 2 : baseReward) * comboMultiplier);
                 
@@ -586,8 +624,15 @@ async function generateOptionsAsync(grid, baseReward) {
                 }
                 
                 if (gameState.wordStats[currentWord.w].consecutive >= 5) {
-                    gameState.graduated[currentWord.w] = { w: currentWord.w, c: currentWord.c, lv: currentWord.lv };
-                    showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
+                    let isChroma = gameState.wordStats[currentWord.w].isRecalled === true;
+                    gameState.graduated[currentWord.w] = { 
+                        w: currentWord.w, c: currentWord.c, lv: currentWord.lv, chroma: isChroma 
+                    };
+                    if (isChroma) {
+                        showToast(`🌟 突破極限！[${currentWord.w}] 畢業並解鎖【✨炫彩卡✨】！`, "success");
+                    } else {
+                        showToast(`🎓 恭喜！[${currentWord.w}] 已畢業！`, "success");
+                    }
                 }
 
                 let isCrit = Math.random() < 0.15; let actuallyGrew = false;
@@ -863,10 +908,26 @@ function renderReviewList() {
 }
 
 function masterWord(wk) {
+    // 1. 增加確認視窗
+    if (!confirm(`確定複習完 [${wk}] 這個單字了嗎？\n(注意：亂按可能會觸發天堂特訓喔！😇)`)) return;
+
     if (gameState.mistakes[wk]) {
-        delete gameState.mistakes[wk]; gameState.coins += 50; gameState.energy = Math.min(100, gameState.energy + 50);
-        gameState.inventory['radish'] = (gameState.inventory['radish'] || 0) + 1; saveGame(); updateUI(); renderReviewList();
+        delete gameState.mistakes[wk]; 
+        gameState.coins += 50; 
+        gameState.energy = Math.min(100, gameState.energy + 50);
+        gameState.inventory['radish'] = (gameState.inventory['radish'] || 0) + 1; 
+        
+        // 2. 紀錄複習次數，每十次觸發特訓
+        gameState.reviewClearCount = (gameState.reviewClearCount || 0) + 1;
+
+        saveGame(); 
+        updateUI(); 
+        renderReviewList();
         showToast(`✨ 恭喜克服 [${wk}]！獲得獎勵！`, "success");
+
+        if (gameState.reviewClearCount % 10 === 0) {
+            setTimeout(startHeavenTraining, 800);
+        }
     }
 }
 
@@ -906,16 +967,32 @@ function renderGraduatedList() {
 
         grouped[lv].forEach(item => {
             let starHTML = ""; let bgStyle = ""; let borderColor = "";
-            if (item.cons >= 5) { starHTML = "🥇 金星 (畢業)"; bgStyle = "#fffbea"; borderColor = "#f1c40f"; }
-            else if (item.cons >= 3) { starHTML = "🥈 銀星"; bgStyle = "#f8f9fa"; borderColor = "#bdc3c7"; }
-            else { starHTML = "🥉 銅星"; bgStyle = "#fdf2e9"; borderColor = "#e67e22"; }
+            
+            // 1. 判斷是否為炫彩卡
+            let isChroma = item.isGrad && item.isGrad.chroma;
+
+            if (isChroma) { 
+                starHTML = "✨ 炫彩金星 (超凡)"; bgStyle = "#fffbea"; borderColor = "#f1c40f"; 
+            } else if (item.cons >= 5) { 
+                starHTML = "🥇 金星 (畢業)"; bgStyle = "#fffbea"; borderColor = "#f1c40f"; 
+            } else if (item.cons >= 3) { 
+                starHTML = "🥈 銀星"; bgStyle = "#f8f9fa"; borderColor = "#bdc3c7"; 
+            } else { 
+                starHTML = "🥉 銅星"; bgStyle = "#fdf2e9"; borderColor = "#e67e22"; 
+            }
 
             let card = document.createElement('div');
             card.style.background = bgStyle; card.style.border = `2px solid ${borderColor}`; card.style.padding = "15px 10px"; card.style.borderRadius = "16px"; card.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)"; card.style.display = "flex"; card.style.flexDirection = "column"; card.style.justifyContent = "space-between"; card.style.alignItems = "center"; card.style.textAlign = "center"; card.style.position = "relative"; card.style.marginTop = "5px";
             
+            // 2. 如果是炫彩卡，加上外框發光動畫的 class
+            if (isChroma) {
+                card.classList.add('chroma-card');
+            }
+
+            // 3. 在單字 div 裡動態加入 dex-word-title，讓字體變成彩色流動
             card.innerHTML = `
                 <div style="position: absolute; top: -12px; left: -5px; background: #34495e; color: white; font-size: 0.75em; font-weight: bold; padding: 4px 10px; border-radius: 10px; border: 2px solid ${borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${lv == 7 ? '字根' : 'Lv.' + item.lv}</div>
-                <div style="margin-top: 8px;"><div style="font-size: 1.3em; font-weight: 900; color: #2c3e50; margin-bottom: 5px; word-break: break-word;">${item.w}</div><div style="font-size: 0.85em; color: #7f8c8d; font-weight: bold; margin-bottom: 10px; line-height: 1.3;">${item.meaning}</div></div>
+                <div style="margin-top: 8px;"><div class="${isChroma ? 'dex-word-title' : ''}" style="font-size: 1.3em; font-weight: 900; color: #2c3e50; margin-bottom: 5px; word-break: break-word;">${item.w}</div><div style="font-size: 0.85em; color: #7f8c8d; font-weight: bold; margin-bottom: 10px; line-height: 1.3;">${item.meaning}</div></div>
                 <div style="width: 100%;"><div style="font-size: 0.85em; font-weight: bold; padding: 4px; border-radius: 8px; background: white; border: 1px dashed ${borderColor}; color: #333; margin-bottom: 8px;">${starHTML}</div></div>
             `;
 
@@ -934,7 +1011,11 @@ function renderGraduatedList() {
 
 function reviveWord(wk) {
     if (gameState.graduated[wk]) {
-        delete gameState.graduated[wk]; if (gameState.wordStats[wk]) { gameState.wordStats[wk].consecutive = 0; }
+        delete gameState.graduated[wk]; 
+        if (gameState.wordStats[wk]) { 
+            gameState.wordStats[wk].consecutive = 0; 
+            gameState.wordStats[wk].isRecalled = true; // 🌟 標記為召回重練
+        }
         saveGame(); renderGraduatedList(); showToast(`🔄 記憶消退！[${wk}] 已重新加入題庫！`, "info");
     }
 }
@@ -1325,22 +1406,33 @@ window.drawGacha = function(count) {
 function useRenameScroll() {
     if (!gameState.inventory['renameScroll'] || gameState.inventory['renameScroll'] <= 0) return;
     let target = prompt("請輸入數字選擇要改名的對象：\n[1] 勇者姓名 (你自己)\n[2] 目前的寵物");
+    
     if (target === "1") {
         let newName = prompt("請輸入新的勇者姓名：");
         if (newName && newName.trim()) {
-            let oldName = currentUser; currentUser = newName.trim();
-            let oldData = localStorage.getItem('vocabMaster_' + oldName);
-            if(oldData) { localStorage.setItem('vocabMaster_' + currentUser, oldData); localStorage.removeItem('vocabMaster_' + oldName); }
-            localStorage.setItem('last_user_vocablord', currentUser);
-            gameState.inventory['renameScroll']--; saveGame(); updateUI(); togglePanel('inventory'); showToast("✨ 命運已改寫！勇者姓名已變更！", "success");
+            // 關鍵修復：必須同步更新 gameState 裡的名字，不然重整就沒了
+            gameState.playerName = newName.trim();
+            currentUser = gameState.playerName;
+            
+            document.getElementById('hub-player-name').innerText = currentUser;
+            gameState.inventory['renameScroll']--; 
+            saveGame(); 
+            updateUI(); 
+            togglePanel('inventory'); 
+            showToast("✨ 命運已改寫！勇者姓名已變更！", "success");
         }
     } else if (target === "2") {
         let newPetName = prompt("請輸入寵物的新名字：");
         if (newPetName && newPetName.trim()) {
-            let cp = gameState.currentPet; gameState.petStats[cp].customName = newPetName.trim();
-            gameState.inventory['renameScroll']--; saveGame(); updateUI(); togglePanel('inventory'); showToast("✨ 契約已重鑄！寵物姓名已變更！", "success");
+            let cp = gameState.currentPet; 
+            gameState.petStats[cp].customName = newPetName.trim();
+            gameState.inventory['renameScroll']--; 
+            saveGame(); 
+            updateUI(); 
+            togglePanel('inventory'); 
+            showToast("✨ 契約已重鑄！寵物姓名已變更！", "success");
         }
-    } else { showToast("取消改名。", "info"); }
+    }
 }
 
 function updateUI() {
@@ -1538,6 +1630,65 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('main-menu-modal').classList.add('hidden');
         togglePanel('shop');
     });
+
+    // 農場手動點擊種植與收成邏輯
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        const STEP_RATIO = 0.6;
+        const VERTICAL_STEP = TILE_SIZE * STEP_RATIO;
+        const OBJECT_Y_OFFSET = TILE_SIZE * -0.4;
+
+        for (let y = 0; y < ROWS; y++) {
+            if (y % 2 === 0) continue; // 只偵測有泥土的排數
+            for (let x = 0; x < COLS; x++) {
+                let px = offsetX + x * TILE_SIZE;
+                let py = offsetY + y * VERTICAL_STEP + OBJECT_Y_OFFSET;
+                if (y === ROWS - 1) py -= TILE_SIZE * -0.03;
+
+                // 檢查是否點擊在該格子的範圍內
+                if (clickX >= px && clickX <= px + TILE_SIZE &&
+                    clickY >= py && clickY <= py + TILE_SIZE) {
+
+                    let tile = gameState.farmTiles[y][x];
+
+                    if (tile.plant && tile.progress >= 100) {
+                        // 收成
+                        gameState.inventory[tile.type] = (gameState.inventory[tile.type] || 0) + 1;
+                        showFloatingText(`+1`, "#2ecc71");
+                        tile.plant = false;
+                        tile.type = null;
+                        tile.progress = 0;
+                        saveGame();
+                        updateUI();
+                    } else if (!tile.plant) {
+                        // 種植
+                        let cost = SEED_DATA[gameState.currentSeed].cost;
+                        if (gameState.coins >= cost) {
+                            gameState.coins -= cost;
+                            tile.plant = true;
+                            tile.type = gameState.currentSeed;
+                            tile.progress = 0;
+                            showFloatingText(`-💰${cost}`, "#e74c3c");
+                            saveGame();
+                            updateUI();
+                        } else {
+                            showToast("💰 金幣不足！", "error");
+                        }
+                    } else {
+                        // 成長中
+                        showToast(`🌱 還在長大中喔... (${Math.floor(tile.progress)}%)`, "info");
+                    }
+                    return; // 找到對應格子後就提早結束迴圈
+                }
+            }
+        }
+    });
 }); 
 
 document.getElementById('btn-menu-redeem')?.addEventListener('click', () => {
@@ -1622,8 +1773,79 @@ if (localData) {
 }
 
 
+// ================= 天堂複習訓練 =================
+function startHeavenTraining() {
+    forcedReviewQueue = [];
+    let pool = globalVocab.filter(v => v.lv == gameState.difficulty || v.lv == 1).sort(() => Math.random() - 0.5);
+    for(let i=0; i<3; i++) if(pool[i]) forcedReviewQueue.push(pool[i]); // 抽3題防作弊
+    
+    let modal = document.getElementById('forced-review-modal');
+    modal.classList.remove('hidden');
+    modal.style.background = "rgba(241, 196, 15, 0.95)"; // 天堂金黃色背景
+    
+    let content = modal.querySelector('.modal-content'); content.style.borderColor = "#f39c12";
+    let title = content.querySelector('div'); title.style.background = "#f39c12"; title.innerText = "😇 天堂防呆特訓 😇 (測驗你有沒有亂按)";
+    document.getElementById('forced-progress').style.color = "#d35400";
+    document.getElementById('forced-word-display').style.color = "#e67e22";
+    
+    loadHeavenReviewQuestion();
+}
+
+function loadHeavenReviewQuestion() {
+    if (forcedReviewQueue.length === 0) {
+        document.getElementById('forced-review-modal').classList.add('hidden');
+        // 恢復地獄特訓原本的紅色樣式
+        let modal = document.getElementById('forced-review-modal');
+        modal.style.background = "rgba(192, 57, 43, 0.95)";
+        modal.querySelector('.modal-content').style.borderColor = "#c0392b";
+        let title = modal.querySelector('div'); title.style.background = "#e74c3c"; title.innerText = "🚨 錯題達到 30 題！觸發地獄特訓 🚨";
+        document.getElementById('forced-progress').style.color = "#e74c3c";
+        document.getElementById('forced-word-display').style.color = "#c0392b";
+        
+        showToast("🎉 通過天堂試煉！看來你真的有認真複習！獲得 💰1000 獎勵金！", "success");
+        gameState.coins += 1000; saveGame(); updateUI(); return;
+    }
+
+    currentForcedWord = forcedReviewQueue[0];
+    document.getElementById('forced-word-display').innerText = currentForcedWord.w;
+    document.getElementById('forced-progress').innerText = `剩餘：${forcedReviewQueue.length} 題`;
+    let existingNextBtn = document.getElementById('forced-next-btn'); if (existingNextBtn) existingNextBtn.remove();
+
+    let opts = [currentForcedWord.c];
+    let failSafe = 0;
+    while(opts.length < 4 && failSafe < 100) {
+        let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
+        if(!opts.includes(r) && r !== undefined) opts.push(r); failSafe++;
+    }
+
+    const grid = document.getElementById('forced-options-grid'); grid.innerHTML = '';
+    opts.sort(() => Math.random() - 0.5).forEach(o => {
+        let btn = document.createElement('button'); btn.innerText = o;
+        btn.style.padding = "15px"; btn.style.fontSize = "1.1em"; btn.style.fontWeight = "bold"; btn.style.border = "2px solid #bdc3c7"; btn.style.borderRadius = "12px"; btn.style.backgroundColor = "white"; btn.style.cursor = "pointer"; btn.style.color = "#2c3e50";
+        if (o === currentForcedWord.c) btn.dataset.correct = "true";
+
+        btn.addEventListener('click', () => {
+            Array.from(grid.children).forEach(b => b.disabled = true);
+            if (o === currentForcedWord.c) {
+                btn.style.backgroundColor = "#2ecc71"; btn.style.color = "white"; btn.style.borderColor = "#27ae60"; 
+                forcedReviewQueue.shift(); setTimeout(loadHeavenReviewQuestion, 500); 
+            } else {
+                btn.style.backgroundColor = "#e74c3c"; btn.style.color = "white"; btn.style.borderColor = "#c0392b";
+                let correctBtn = Array.from(grid.children).find(b => b.dataset.correct === "true");
+                if (correctBtn) { correctBtn.style.backgroundColor = "#2ecc71"; correctBtn.style.color = "white"; correctBtn.style.borderColor = "#27ae60"; }
+                showToast("❌ 亂按被抓到了！請確實記住意思喔！", "error"); 
+                let w = forcedReviewQueue.shift(); forcedReviewQueue.push(w); 
+                let nextBtn = document.createElement('button'); nextBtn.id = 'forced-next-btn'; nextBtn.innerText = "記住了，下一題 ➔"; nextBtn.style.marginTop = "20px"; nextBtn.style.padding = "15px"; nextBtn.style.fontSize = "1.2em"; nextBtn.style.fontWeight = "bold"; nextBtn.style.backgroundColor = "#f39c12"; nextBtn.style.color = "white"; nextBtn.style.border = "none"; nextBtn.style.borderRadius = "12px"; nextBtn.style.cursor = "pointer"; nextBtn.style.width = "100%"; nextBtn.style.boxShadow = "0 5px 0 #d35400";
+                nextBtn.addEventListener('click', loadHeavenReviewQuestion); grid.parentElement.appendChild(nextBtn);
+            }
+        });
+        grid.appendChild(btn);
+    });
+}
 
 migrateGrid();
 resize(); 
 updateUI();
+
+
 

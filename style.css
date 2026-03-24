@@ -758,3 +758,210 @@ body.is-pro #ui-overlays { left: 20px; }
 @media (max-width: 1024px) {
     #seed-selection-bar { bottom: 85px; left: 15px; }
 }
+
+/* 美化勇者命名輸入框 */
+#new-hero-name-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #bdc3c7;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    text-align: center;
+    font-weight: bold;
+    background: #f4f6f7;
+    box-sizing: border-box;
+    transition: 0.3s;
+}
+#new-hero-name-input:focus {
+    border-color: #3498db;
+    outline: none;
+    background: white;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.2);
+}
+
+/* ================= 修正左側邊欄過長與題幹顏色 ================= */
+#sidebar { padding: 15px; }
+.user-header { margin-bottom: 10px; }
+#quiz-panel { margin: 10px 0; }
+#word-display {
+    color: #222; /* 題幹文字改回黑色 */
+    margin: 10px 0;
+}
+#options-grid { gap: 8px; }
+#options-grid button { padding: 12px 10px; font-size: 1.05em; }
+.mode-label { padding: 8px 15px; }
+
+/* ================= 修正連勝保護傘彈窗字體與按鈕 ================= */
+#shield-prompt-msg { 
+    font-size: 1.1em; 
+    color: #34495e; 
+}
+.small-btn {
+    border: none; border-radius: 12px; color: white;
+    font-weight: bold; font-size: 1.1em; padding: 12px;
+    cursor: pointer; transition: 0.1s;
+}
+.small-btn:active { transform: translateY(4px); box-shadow: none !important; }
+#btn-shield-false { box-shadow: 0 4px 0 #7f8c8d; }
+
+/* ================= 手機版專屬極限壓縮與隱藏跑馬燈 ================= */
+@media (max-width: 1024px), (orientation: portrait) {
+    /* 手機版隱藏跑馬燈 */
+    #marquee-container { display: none !important; }
+    
+    /* 極限壓縮手機版答題區空間，確保完全塞進螢幕不需滑動 */
+    #word-display { font-size: 1.8em !important; margin: 8px 0 !important; }
+    #options-grid button { padding: 10px 8px !important; font-size: 1em !important; }
+    .pig-avatar-container { width: 70px !important; height: 70px !important; }
+    .user-header { margin-bottom: 5px !important; }
+    #quiz-panel { margin: 5px 0 !important; }
+    .tag { line-height: 1.4 !important; margin-bottom: 5px; }
+    
+    /* 修正整體高度，確實扣除底部導覽列 */
+    #game-body { height: calc(100% - 60px) !important; flex: none; }
+}
+
+/* ================= 終極壓縮左側答題區，確保寵物活力不被擠出 ================= */
+
+/* 1. 縮小題幹文字、行高與上下外距 */
+#word-display {
+    font-size: 1.8em !important; 
+    margin: 5px 0 8px 0 !important;
+    line-height: 1.1 !important;
+}
+
+/* 2. 縮小發音按鈕與其間距 */
+.sound-btn {
+    font-size: 0.9em !important;
+    padding: 8px 15px !important;
+    border-radius: 8px !important;
+}
+
+/* 3. 壓縮模式切換按鈕 (英英解釋/同義字) */
+.mode-label {
+    padding: 6px 10px !important;
+    font-size: 0.85em !important;
+    width: 95% !important;
+}
+
+/* 4. 壓扁難度選擇區與整體行高 */
+.tag {
+    line-height: 1.2 !important;
+    margin-bottom: 5px !important;
+}
+.tag select {
+    font-size: 0.95em !important;
+}
+#reward-hint {
+    font-size: 0.9em !important;
+}
+
+/* 5. 壓縮四個選項跟「我不會」按鈕的空間 */
+#options-grid {
+    gap: 6px !important; 
+    margin-bottom: 10px !important;
+}
+#options-grid button {
+    padding: 8px 5px !important;
+    font-size: 0.95em !important;
+    border-radius: 10px !important;
+}
+#options-grid button:last-child {
+    padding: 6px !important;
+    font-size: 0.85
+    em !important;
+}
+
+/* ================= 升級專業版按鈕 (維持原版設計，增加縮放與光暈特效) ================= */
+#pro-upgrade-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: linear-gradient(135deg, #f1c40f, #f39c12) !important; /* 恢復原版橘黃漸層 */
+    color: #fff !important; /* 恢復原版白字 */
+    padding: 12px 20px !important;
+    border-radius: 50px !important;
+    font-weight: bold !important;
+    font-size: 1.1em !important;
+    border: 2px solid #fff !important; /* 恢復原版白邊 */
+    z-index: 100 !important;
+    cursor: pointer !important;
+    text-shadow: none !important; /* 清除不必要的文字陰影 */
+    
+    /* 套用全新的縮放與發光動畫 */
+    animation: smoothScaleGlow 1.5s infinite ease-in-out !important;
+}
+
+/* 放大縮小 + 光暈呼吸效果 */
+@keyframes smoothScaleGlow {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4); 
+    }
+    50% { 
+        transform: scale(1.08); /* 微微放大 */
+        box-shadow: 0 0 20px rgba(243, 156, 18, 0.8), 0 0 10px rgba(255, 255, 255, 0.6); /* 增加外圍發光 */
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4); 
+    }
+}
+
+/* 確保手機版位置不擋住其他按鈕 */
+@media (max-width: 1024px) {
+    #pro-upgrade-btn {
+        top: auto !important;
+        bottom: 90px !important; 
+        left: 15px !important;
+        padding: 10px 15px !important;
+        font-size: 0.95em !important;
+    }
+}
+
+
+/* ================= 炫彩卡動畫 ================= */
+@keyframes chromaGlow {
+    0% { box-shadow: 0 0 10px #ff3b3b, inset 0 0 10px #ff3b3b; border-color: #ff3b3b; }
+    33% { box-shadow: 0 0 10px #3498db, inset 0 0 10px #3498db; border-color: #3498db; }
+    66% { box-shadow: 0 0 10px #f1c40f, inset 0 0 10px #f1c40f; border-color: #f1c40f; }
+    100% { box-shadow: 0 0 10px #ff3b3b, inset 0 0 10px #ff3b3b; border-color: #ff3b3b; }
+}
+.chroma-card {
+    animation: chromaGlow 3s linear infinite !important;
+    background: linear-gradient(135deg, #fffbea, #ffffff) !important;
+    transform: scale(1.03);
+    z-index: 10;
+}
+.chroma-card .dex-word-title {
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71, #3498db, #9b59b6);
+    background-size: 200% auto;
+    -webkit-text-fill-color: transparent;
+    animation: flowColors 3s linear infinite;
+}
+@keyframes flowColors {
+    to { background-position: 200% center; }
+}
+
+
+/* ================= 修正登入白框被底部頁腳蓋住的問題 ================= */
+#login-screen {
+    padding-bottom: 70px !important; /* 在底部墊出空間，把白框整體往上推，避開深色頁腳 */
+    box-sizing: border-box;
+}
+
+.login-box {
+    max-height: calc(100vh - 100px) !important; /* 確保白框高度不會超過螢幕減去頁腳的空間 */
+    margin: auto !important;
+}
+
+/* 如果是手機版，頁腳可能會變厚，所以手機版要留多一點底部空間 */
+@media (max-width: 480px) {
+    #login-screen {
+        padding-bottom: 90px !important; 
+    }
+    .login-box {
+        max-height: calc(100vh - 120px) !important;
+    }
+}
