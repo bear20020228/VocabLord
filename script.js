@@ -245,12 +245,26 @@ async function syncLoadFromCloud() {
     return false;
 }
 
+let cloudSyncTimer = null;
+
 function saveGame() { 
-    // 改用 window.auth.currentUser.uid 確保每個帳號都有專屬的存檔 Key
     if (window.auth && window.auth.currentUser) {
+        // 1. 每次動作都即時存入本地端 (不用錢，隨便存)
         localStorage.setItem('vocabMaster_' + window.auth.currentUser.uid, JSON.stringify(gameState));
-        syncSaveToCloud(); 
+        
+        // 2. 觸發雲端同步排程 (防抖機制)
+        scheduleCloudSync();
     }
+}
+
+// 防抖：當玩家連續瘋狂點擊(答題/收成)時，計時器會一直被重置，
+// 直到玩家停下手部動作 15 秒後，才會真正發送 1 次雲端寫入。
+function scheduleCloudSync() {
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(() => {
+        syncSaveToCloud();
+        console.log("☁️ 背景已同步至 Firebase");
+    }, 15000); // 15秒延遲，你可以依需求調整為 30000 (30秒)
 }
 
 function resetGameState() {
@@ -2035,8 +2049,18 @@ document.addEventListener("DOMContentLoaded", () => {
         emailInput.value = lastEmail; 
     }
 
-    setInterval(saveGame, 5000);
-// --- 新增：選項卡切換監聽器 ---
+    // ❌ 刪除這行致命的 5 秒狂存設定
+    // setInterval(saveGame, 5000);
+
+    // ✅ 改成這樣：每 30 秒只存「本地端」，完全不消耗 Firebase 流量
+    setInterval(() => {
+        if (window.auth && window.auth.currentUser) {
+            localStorage.setItem('vocabMaster_' + window.auth.currentUser.uid, JSON.stringify(gameState));
+            console.log("💾 遊戲已自動保存在本地端");
+        }
+    }, 30000);
+
+    // --- 新增：選項卡切換監聽器 ---
     // 這能確保在介面加載完成後，準確地為按鈕綁定事件
     const btnSwitchEnglish = document.getElementById('btn-switch-english');
     const btnSwitchTaiwanese = document.getElementById('btn-switch-taiwanese');
@@ -2046,7 +2070,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (window.currentReviewTab !== 'english') {
                 window.currentReviewTab = 'english';
                 renderReviewList();
-                updateUI(); // Optionally call updateUI to ensure any other dependent UI updates
+                updateUI(); 
             }
         });
 
@@ -2054,10 +2078,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (window.currentReviewTab !== 'taiwanese') {
                 window.currentReviewTab = 'taiwanese';
                 renderReviewList();
-                updateUI(); // Optionally call updateUI to ensure any other dependent UI updates
+                updateUI(); 
             }
         });
     }
+
+    // ... 下面的 addEventListener 維持原樣不變 ...
 
 
 
@@ -2365,3 +2391,14 @@ updateUI();
 
 
 
+
+
+// ==========================================
+// 🛡️ 關閉網頁前的最終保命存檔
+// ==========================================
+window.addEventListener('beforeunload', (event) => {
+    if (window.auth && window.auth.currentUser) {
+        // 玩家關閉視窗時，強制發送最後一次雲端同步
+        syncSaveToCloud();
+    }
+});
