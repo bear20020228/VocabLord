@@ -216,18 +216,7 @@ function resize() {
     offsetX = Math.floor((canvas.width - gridW) / 2);
     offsetY = Math.floor((canvas.height - gridH) / 2);
 }
-let resizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(resize, 250); // 防抖，等瀏覽器畫面完全展開再重算
-});
-
-// 監聽網頁可見度變化，當玩家切回畫面時，強制校正畫布比例
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        setTimeout(resize, 300); 
-    }
-});
+window.addEventListener('resize', resize);
 
 async function syncSaveToCloud() {
     if (window.auth && window.auth.currentUser) {
@@ -756,13 +745,10 @@ async function generateOptionsAsync(grid, baseReward) {
                 if (comboMultiplier > 1.0) showFloatingText(`+${finalReward} 💰 (Combo x${comboMultiplier.toFixed(1)})`, "#f1c40f");
                 else showFloatingText(`+${finalReward} 💰`, "#2ecc71");
 
-                // 注意：在 resetGameState 時，記得加上 hasClaimedComboScroll: false
-
-if (gameState.combo === 50 && !gameState.hasClaimedComboScroll && (gameState.difficulty === "5" || gameState.difficulty === "all")) {
-    gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
-    gameState.hasClaimedComboScroll = true; // 紀錄已經領過
-    showToast(`🏆 神之領域！達成 50 連勝，獲得【傳說改名卷軸】(單帳號限領一次)！`, "success");
-}
+                if (gameState.combo > 0 && gameState.combo % 50 === 0 && (gameState.difficulty === "5" || gameState.difficulty === "all")) {
+                    gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
+                    showToast(`🏆 神之領域！達成 ${gameState.combo} 連勝，獲得【傳說改名卷軸】！`, "success");
+                }
                 
                 if (gameState.wordStats[currentWord.w].consecutive >= 5) {
                     let isChroma = gameState.wordStats[currentWord.w].isRecalled === true;
