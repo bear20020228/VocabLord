@@ -434,6 +434,7 @@ function enterRealm(realmId) {
 function backToMap() {
     document.getElementById('game-container').classList.add('hidden');
     document.getElementById('world-map-screen').classList.remove('hidden');
+    document.getElementById('main-menu-modal').classList.add('hidden'); // ✨ 加入這行：關閉領主選單
 }
 
 function showTutorial() { document.getElementById('tutorial-modal').classList.remove('hidden'); }
@@ -1743,7 +1744,7 @@ window.drawGacha = function(count) {
         // 2%：高級道具 (SSR) - 藥水
         else if (r < 0.022)  results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       
         // 7%：實用道具 (SR) - 保護傘
-        else if (r < 0.092)  results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});       
+        else if (r < 0.042)  results.push({name: "保護傘", icon: "🛡️", type: "item", key: "shield"});       
         // 3%：大獎金 (1萬) - 翻倍
         else if (r < 0.122)  results.push({name: "1萬金幣", icon: "💰", type: "coin", val: 10000});          
         // 10%：保本獎 (5千) - 平手
@@ -1751,7 +1752,7 @@ window.drawGacha = function(count) {
         // 35%：小虧獎 (1千)
         else if (r < 0.572)  results.push({name: "1千金幣", icon: "🪙", type: "coin", val: 1000});           
         // 42.8%：血虧獎 (200) - 增加挫折感
-        else                 results.push({name: "200金幣", icon: "💩", type: "coin", val: 200});            
+        else                 results.push({name: "200金幣", icon: "🙉", type: "coin", val: 200});            
     }
 
     // 3. 🌟 金蛋發慌並變大爆炸的動畫序列 🌟

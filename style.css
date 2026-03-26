@@ -1836,14 +1836,16 @@ body.kids-mode-active #energy-container {
     }
 
     /* 3. 一鍵播種與收成按鈕：高度微調使其與圓圈協調 */
-    .quick-btn { 
-        flex: 1 !important; 
-        height: 50px !important; 
-        font-size: 1em !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border-radius: 12px !important;
-    }
+.quick-btn { 
+    flex: 1 !important; 
+    height: 50px !important; 
+    font-size: 1em !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+    justify-content: center !important; /* ✨ 加入這行：強制文字與圖示置中 */
+    gap: 5px !important; /* ✨ 加入這行：縮小間距防止擠壓變形 */
+}
 
     /* 4. 專業版按鈕：往上推開，避免擋到操作 */
     #pro-upgrade-btn { 
@@ -1942,13 +1944,11 @@ body.is-pro #ui-overlays {
 @media (max-width: 1024px), (orientation: portrait) {
     #ui-overlays { 
         top: 15px !important; 
-        /* 💡 關鍵：在手機/半畫面版，專業版按鈕已經移到下方了 */
-        /* 所以上方的按鈕可以直接「置左」貼牆 */
-        left: 15px !important; 
-        right: auto !important;
+        left: auto !important;   /* 👈 取消靠左 */
+        right: 15px !important;  /* 👈 改成靠右貼牆 */
         width: auto !important;
         display: flex !important;
-        justify-content: flex-start !important; 
+        justify-content: flex-end !important; /* 👈 確保裡面的按鈕往右邊對齊 */
         gap: 8px !important;
         transform: none !important;
     }
@@ -1957,7 +1957,7 @@ body.is-pro #ui-overlays {
     .overlay-btn { 
         padding: 8px 12px !important; 
         font-size: 0.85em !important; 
-        flex: none !important; /* 確保按鈕不會被強行拉長 */
+        flex: none !important; 
     }
 }
 
@@ -1970,4 +1970,15 @@ body.is-pro #ui-overlays {
         padding: 8px 6px !important;
         font-size: 0.8em !important;
     }
+}
+
+/* 4. 專業版按鈕：移至右上角 */
+#pro-upgrade-btn { 
+    top: 15px !important; /* 改靠上 */
+    bottom: auto !important; 
+    left: auto !important; 
+    left: 15px !important; /* 改靠右 */
+    padding: 8px 12px !important; 
+    font-size: 0.9em !important; 
+    z-index: 100 !important; 
 }
