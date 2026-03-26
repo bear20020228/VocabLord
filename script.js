@@ -74,11 +74,16 @@ let currentUser = "";
 let gameState = {
     coins: 100, energy: 100, combo: 0,
     currentRealm: 'english', // <--- 加在這裡
-    inventory: { carrot: 0, tomato: 0, radish: 0 },
-    farmTiles: [], difficulty: "1", currentPet: "pig", 
+inventory: { carrot: 0, tomato: 0, radish: 0, beetroot: 0, cucumber: 0, onion: 0 },    farmTiles: [], difficulty: "1", currentPet: "pig", 
     currentSeed: "carrot", 
     petsOwned: ["pig"], 
-    petStats: { pig: { lv: 1, exp: 0 }, fox: { lv: 1, exp: 0 }, cat: { lv: 1, exp: 0 } },
+    petStats:{ 
+    pig: { lv: 1, exp: 0 }, 
+    fox: { lv: 1, exp: 0 }, 
+    cat: { lv: 1, exp: 0 },
+    mouse: { lv: 1, exp: 0 },
+    rabbit: { lv: 1, exp: 0 },
+    chicken: { lv: 1, exp: 0 }},
     isPro: false,
     mistakes: {},
     wordStats: {}, 
@@ -104,13 +109,19 @@ migrateGrid();
 let activePets = {
     pig: { x: 4, y: 3, targetX: 4, targetY: 3, state: 'idle', timer: 0, dir: 'Down' },
     fox: { x: 7, y: 4, targetX: 7, targetY: 4, state: 'idle', timer: 0, dir: 'Down' },
-    cat: { x: 2, y: 2, targetX: 2, targetY: 2, state: 'idle', timer: 0, dir: 'Down' }
+    cat: { x: 2, y: 2, targetX: 2, targetY: 2, state: 'idle', timer: 0, dir: 'Down' },
+    mouse: { x: 3, y: 6, targetX: 3, targetY: 6, state: 'idle', timer: 0, dir: 'Down' },
+    rabbit: { x: 5, y: 5, targetX: 5, targetY: 5, state: 'idle', timer: 0, dir: 'Down' },
+    chicken: { x: 6, y: 2, targetX: 6, targetY: 2, state: 'idle', timer: 0, dir: 'Down' }
 };
 
 const PET_DATA = {
     pig: { id: 'pig', title: '神豬', cost: 0, desc: '預設擁有' },
     fox: { id: 'fox', title: '我的刀盾', cost: 15000, desc: '需 💰15,000' },
-    cat: { id: 'cat', title: '比比拉布', cost: 50000, desc: '💰50,000 (Pro解鎖)' } 
+    mouse: { id: 'mouse', title: '地下水王國的王子', cost: 20000, desc: '💰20,000' },
+    cat: { id: 'cat', title: '比比拉布', cost: 50000, desc: '💰50,000 (Pro解鎖)' } ,
+    rabbit: { id: 'rabbit', title: '幸運月兔', cost: -1, desc: '🎁 金蛋抽獎限定' },
+    chicken: { id: 'chicken', title: '夢想成為霸王龍的雞', cost: -1, desc: '🏆 1000連勝限定' }
 };
 
 
@@ -162,6 +173,9 @@ const assets = {
     pig_Up: 'assets/Characters/Pig_Up.png', pig_Down: 'assets/Characters/Pig_Down.png', pig_Left: 'assets/Characters/Pig_Left.png', pig_Right: 'assets/Characters/Pig_Right.png', pig_Dead: 'assets/Characters/Pig_Dead.png',
     fox_Up: 'assets/Characters/Fox_Up.png', fox_Down: 'assets/Characters/Fox_Down.png', fox_Left: 'assets/Characters/Fox_Left.png', fox_Right: 'assets/Characters/Fox_Right.png', fox_Dead: 'assets/Characters/Fox_Dead.png',
     cat_Up: 'assets/Characters/Cat_Up.png', cat_Down: 'assets/Characters/Cat_Down.png', cat_Left: 'assets/Characters/Cat_Left.png', cat_Right: 'assets/Characters/Cat_Right.png', cat_Dead: 'assets/Characters/Cat_Dead.png',
+    mouse_Up: 'assets/Characters/Mouse_Up.png', mouse_Down: 'assets/Characters/Mouse_Down.png', mouse_Left: 'assets/Characters/Mouse_Left.png', mouse_Right: 'assets/Characters/Mouse_Right.png', mouse_Dead: 'assets/Characters/Mouse_Dead.png',
+    rabbit_Up: 'assets/Characters/Rabbit_Up.png', rabbit_Down: 'assets/Characters/Rabbit_Down.png', rabbit_Left: 'assets/Characters/Rabbit_Left.png', rabbit_Right: 'assets/Characters/Rabbit_Right.png', rabbit_Dead: 'assets/Characters/Rabbit_Dead.png',
+    chicken_Up: 'assets/Characters/Chicken_Up.png', chicken_Down: 'assets/Characters/Chicken_Down.png', chicken_Left: 'assets/Characters/Chicken_Left.png', chicken_Right: 'assets/Characters/Chicken_Right.png', chicken_Dead: 'assets/Characters/Chicken_Dead.png',
 
     fenceTL: 'assets/Fences/Fence_Corner_Top_Left.png', fenceTR: 'assets/Fences/Fence_Corner_Top_Right.png',
     fenceBL: 'assets/Fences/Fence_Corner_Bottom_Left.png', fenceBR: 'assets/Fences/Fence_Corner_Bottom_Right.png',
@@ -216,8 +230,18 @@ function resize() {
     offsetX = Math.floor((canvas.width - gridW) / 2);
     offsetY = Math.floor((canvas.height - gridH) / 2);
 }
-window.addEventListener('resize', resize);
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 250); // 防抖，等瀏覽器畫面完全展開再重算
+});
 
+// 監聽網頁可見度變化，當玩家切回畫面時，強制校正畫布比例
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        setTimeout(resize, 300); 
+    }
+});
 async function syncSaveToCloud() {
     if (window.auth && window.auth.currentUser) {
         try {
@@ -721,8 +745,13 @@ async function generateOptionsAsync(grid, baseReward) {
             if(o.isCorrect) { 
                 // 改用 CSS class，移除原本一長串的 style
                 b.classList.add('quiz-btn-correct');
-
                 gameState.combo = (gameState.combo || 0) + 1;
+                
+                // 在原本發送金幣和 Combo 計算的下方加入這段：
+    if (gameState.combo === 1000 && !gameState.petsOwned.includes('chicken')) {
+        gameState.petsOwned.push('chicken');
+        showToast("🏆 奇蹟降臨！達成 1000 連勝，獲得隱藏寵物【夢想成為霸王龍的雞】！", "success");
+    }
                 // 👇 新增這段：30連勝的專業版推銷
                 if (!gameState.isPro && gameState.combo === 30 && gameState.difficulty === "1") {
                     setTimeout(() => {
@@ -745,10 +774,13 @@ async function generateOptionsAsync(grid, baseReward) {
                 if (comboMultiplier > 1.0) showFloatingText(`+${finalReward} 💰 (Combo x${comboMultiplier.toFixed(1)})`, "#f1c40f");
                 else showFloatingText(`+${finalReward} 💰`, "#2ecc71");
 
-                if (gameState.combo > 0 && gameState.combo % 50 === 0 && (gameState.difficulty === "5" || gameState.difficulty === "all")) {
-                    gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
-                    showToast(`🏆 神之領域！達成 ${gameState.combo} 連勝，獲得【傳說改名卷軸】！`, "success");
-                }
+                // 注意：在 resetGameState 時，記得加上 hasClaimedComboScroll: false
+
+if (gameState.combo === 50 && !gameState.hasClaimedComboScroll && (gameState.difficulty === "5" || gameState.difficulty === "all")) {
+    gameState.inventory['renameScroll'] = (gameState.inventory['renameScroll'] || 0) + 1;
+    gameState.hasClaimedComboScroll = true; // 紀錄已經領過
+    showToast(`🏆 神之領域！達成 50 連勝，獲得【傳說改名卷軸】(單帳號限領一次)！`, "success");
+}
                 
                 if (gameState.wordStats[currentWord.w].consecutive >= 5) {
                     let isChroma = gameState.wordStats[currentWord.w].isRecalled === true;
@@ -1739,8 +1771,10 @@ window.drawGacha = function(count) {
     let results = [];
     for(let i=0; i<count; i++) {
         let r = Math.random();
+        if (r < 0.0001 && !gameState.petsOwned.includes('rabbit')) {
+        results.push({name: "幸運月兔", icon: "🐰", type: "pet", key: "rabbit"});} 
         // 0.2%：極致稀有 (UR) - 改名卷軸
-        if (r < 0.0005)      results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
+        else if (r < 0.00001) results.push({name: "改名卷軸", icon: "📜", type: "item", key: "renameScroll"}); 
         // 2%：高級道具 (SSR) - 藥水
         else if (r < 0.022)  results.push({name: "催熟藥水", icon: "🧪", type: "item", key: "potion"});       
         // 7%：實用道具 (SR) - 保護傘
@@ -1901,6 +1935,17 @@ function updateUI() {
     // 🌟 關鍵修復：確保每次更新 UI 時，左下角裝備按鈕都會被畫出來！
     if (typeof window.renderSeedSelectorBtn === 'function') {
         window.renderSeedSelectorBtn();
+    }
+
+    // 在 updateUI() 函式底部加上這段：
+    const farmPetIcon = document.getElementById('farm-pet-icon');
+    const farmPetName = document.getElementById('farm-pet-name');
+    const farmPetExp = document.getElementById('farm-pet-exp');
+    
+    if (farmPetIcon && farmPetName && farmPetExp) {
+        farmPetIcon.src = images[petImgKey] && images[petImgKey].isLoaded ? images[petImgKey].src : "assets/Characters/Pig_Down.png";
+        farmPetName.innerText = `Lv.${stat.lv} ${stat.customName || PET_DATA[cp].title}`;
+        farmPetExp.style.width = (stat.exp / reqExp * 100) + "%";
     }
 }
 
