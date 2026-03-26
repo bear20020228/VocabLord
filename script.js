@@ -86,7 +86,8 @@ let gameState = {
 };
 
 function migrateGrid() {
-    if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || gameState.farmTiles[0].length !== COLS) {
+    // 1. 原本的農場網格存檔修復
+    if (!gameState.farmTiles || gameState.farmTiles.length !== ROWS || !gameState.farmTiles[0] || gameState.farmTiles[0].length !== COLS) {
         let newTiles = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({ plant: false, type: null, progress: 0 })));
         if (gameState.farmTiles && gameState.farmTiles.length > 0) {
             for(let y = 0; y < Math.min(ROWS, gameState.farmTiles.length); y++) {
@@ -96,8 +97,26 @@ function migrateGrid() {
             }
         }
         gameState.farmTiles = newTiles;
-        saveGame();
     }
+
+    // 🌟 2. [新增] 寵物存檔防呆與自動修復
+    if (!gameState.petStats) gameState.petStats = { pig: { lv: 1, exp: 0 } };
+    if (!gameState.petsOwned) gameState.petsOwned = ['pig'];
+    if (!gameState.currentPet) gameState.currentPet = 'pig';
+    
+    // 確保所有擁有的寵物，都一定有對應的等級 (lv) 和經驗值 (exp) 資料
+    gameState.petsOwned.forEach(pid => {
+        if (!gameState.petStats[pid]) {
+            gameState.petStats[pid] = { lv: 1, exp: 0 };
+        }
+    });
+    
+    // 確保目前裝備的寵物是合法的
+    if (!gameState.petStats[gameState.currentPet]) {
+        gameState.currentPet = 'pig';
+    }
+
+    saveGame();
 }
 migrateGrid();
 
@@ -205,10 +224,12 @@ function resize() {
 
     const STEP_RATIO = 0.7; 
 
-    TILE_SIZE = Math.floor(Math.min(
+    // 🌟 防呆：確保 TILE_SIZE 絕對不會是 0 或負數，保底 10px
+    let calculatedSize = Math.floor(Math.min(
         canvas.width / COLS, 
         (canvas.height - 160) / ((ROWS - 1) * STEP_RATIO + 1)
     ));
+    TILE_SIZE = Math.max(10, calculatedSize); 
 
     const gridW = COLS * TILE_SIZE;
     const gridH = ((ROWS - 1) * (TILE_SIZE * STEP_RATIO)) + TILE_SIZE;
@@ -424,10 +445,24 @@ function submitHeroName() {
 }
 
 function enterRealm(realmId) {
-    if (realmId !== 'english') { showToast("🚧 此領域正在積極建設中，敬請期待！", "info"); return; }
+    if (realmId !== 'english' && realmId !== 'taiwanese') { showToast("🚧 此領域正在積極建設中，敬請期待！", "info"); return; }
     document.getElementById('world-map-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
-    resize(); updateUI(); loadQuestion(); requestAnimationFrame(tick);
+    
+    resize(); 
+    updateUI(); 
+    
+    // 🌟 關鍵修改 1：先把農場動畫啟動！確保畫面不會因為題目當機而變白畫面
+    requestAnimationFrame(tick); 
+    
+    // 🌟 關鍵修改 2：加上防呆保護網
+    try {
+        loadQuestion(); 
+    } catch (e) {
+        console.error("🚨 題目載入崩潰：", e);
+        document.getElementById('word-display').innerHTML = "<span style='color:red; font-size:0.6em;'>⚠️ 題庫載入異常</span>";
+    }
+    
     if (window.innerWidth <= 1024) setTimeout(() => { switchTab('quiz'); }, 50);
 }
 
@@ -570,12 +605,20 @@ function getCoinReward(wordLv) {
 // ==========================================
 
 function loadQuestion() {
-    // 1. 核心判斷：決定現在要抓哪一個題庫
-    // 如果 gameState.currentRealm 是 'taiwanese'，就用 twVocab，否則用原本的 globalVocab
-    const activePool = (gameState.currentRealm === 'taiwanese') ? twVocab : globalVocab;
+    // 🌟 關鍵修改 3：使用 typeof 和 window. 安全檢查，防止找不到題庫時當機
+    let activePool = [];
+    if (gameState.currentRealm === 'taiwanese') {
+        activePool = (typeof window.twVocab !== 'undefined') ? window.twVocab : [];
+    } else {
+        activePool = (typeof globalVocab !== 'undefined') ? globalVocab : [];
+    }
 
-    if (typeof activePool === 'undefined') return;
-
+    // 防呆：如果題庫沒抓到，提早結束，避免後續運算當機
+    if (!activePool || activePool.length === 0) {
+        console.error("🚨 找不到題庫資料！請檢查 vocab.js 或 tw_vocab.js。");
+        document.getElementById('word-display').innerHTML = "<span style='color:red; font-size:0.6em;'>題庫遺失</span>";
+        return; 
+    }
     const displayContainer = document.getElementById('word-display').parentElement;
     const btnContainer = displayContainer.querySelector('div');
     if (btnContainer && btnContainer.style) btnContainer.style.display = 'flex';
@@ -666,7 +709,9 @@ async function generateOptionsAsync(grid, baseReward) {
             optsData.push({ text: correctHint, isCorrect: true });
         }
 
-        let failSafe = 0; let usedWords = [currentWord.w];
+        let failSafe = 0; 
+        
+        let usedWords = [currentWord.w];
         let chineseCount = fallbackUsed ? 1 : 0; 
 
         while(optsData.length < 4 && failSafe < 40) {
@@ -696,9 +741,21 @@ async function generateOptionsAsync(grid, baseReward) {
     } else {
         optsData.push({ text: currentWord.c, isCorrect: true });
         let failSafe = 0;
+        
+        // 🌟 關鍵修改 4：確認目前到底要從哪個題庫抓錯誤選項
+        const poolForWrongAnswers = (gameState.currentRealm === 'taiwanese') 
+            ? (typeof window.twVocab !== 'undefined' ? window.twVocab : []) 
+            : (typeof globalVocab !== 'undefined' ? globalVocab : []);
+
         while(optsData.length < 4 && failSafe < 100) {
-            let r = globalVocab[Math.floor(Math.random() * globalVocab.length)].c;
-            if(!optsData.some(o => o.text === r) && r !== undefined) optsData.push({ text: r, isCorrect: false });
+            let randomWordObj = poolForWrongAnswers[Math.floor(Math.random() * poolForWrongAnswers.length)];
+            
+            if (randomWordObj && randomWordObj.c) {
+                let r = randomWordObj.c;
+                if(!optsData.some(o => o.text === r)) {
+                    optsData.push({ text: r, isCorrect: false });
+                }
+            }
             failSafe++;
         }
     }
@@ -1304,27 +1361,41 @@ function reviveWord(wk) {
         saveGame(); renderGraduatedList(); showToast(`🔄 記憶消退！[${wk}] 已重新加入題庫！`, "info");
     }
 }
-
 function moveAllPets() {
-    gameState.petsOwned.forEach(pid => {
-        let p = activePets[pid]; let stat = gameState.petStats[pid]; let speed = getPetSpeed(stat.lv);
+    // 🌟 終極防呆：過濾掉存檔裡未知的「幽靈寵物」，只允許活著的寵物移動
+    const validPets = gameState.petsOwned.filter(pid => activePets[pid]);
+
+    validPets.forEach(pid => {
+        let p = activePets[pid]; 
+        let stat = gameState.petStats[pid] || { lv: 1, exp: 0 }; // 確保 stat 有預設值
+        let speed = getPetSpeed(stat.lv);
+        
         if (gameState.energy >= 90) speed *= 3.0; 
-// ✨ 如果開啟兒童模式，動物沒體力時只會趴下睡覺 (Down)，不會出現叉叉眼睛 (Dead)
+        
+        // ✨ 如果開啟兒童模式，動物沒體力時只會趴下睡覺 (Down)
         if (gameState.energy <= 0) { p.dir = gameState.kidsMode ? 'Down' : 'Dead'; return; }
-                if (p.state === 'idle') {
+        
+        if (p.state === 'idle') {
              p.timer--;
-              if (p.timer <= 0) { 
+             if (p.timer <= 0) { 
                 p.targetX = Math.random()*(COLS-1); 
                 p.targetY = Math.random()*(ROWS-1); 
-                p.state = 'walk'; } } 
-        else {
+                p.state = 'walk'; 
+             } 
+        } else {
             let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > speed) { p.x += (dx/dist)*speed; p.y += (dy/dist)*speed; p.dir = Math.abs(dx)>Math.abs(dy)?(dx>0?'Right':'Left'):(dy>0?'Down':'Up'); checkPetCollision(p); } 
-            else { p.state = 'idle'; p.timer = Math.random()*80+30; }
+            if (dist > speed) { 
+                p.x += (dx/dist)*speed; 
+                p.y += (dy/dist)*speed; 
+                p.dir = Math.abs(dx)>Math.abs(dy) ? (dx>0 ? 'Right' : 'Left') : (dy>0 ? 'Down' : 'Up'); 
+                checkPetCollision(p); 
+            } else { 
+                p.state = 'idle'; 
+                p.timer = Math.random()*80+30; 
+            }
         }
     });
 }
-
 function checkPetCollision(p) {
     let tx = Math.floor(p.x + 0.5), ty = Math.floor(p.y + 0.5);
     if(tx>=0 && tx<COLS && ty>=0 && ty<ROWS && gameState.farmTiles[ty] && gameState.farmTiles[ty][tx]) {
@@ -1344,10 +1415,21 @@ function checkPetCollision(p) {
 }
 
 function tick() {
-    gameState.energy = Math.max(0, gameState.energy - 0.04);
-    moveAllPets();
-    draw();
-    updateUI();
+    // 🌟 關鍵保護網：確保動畫迴圈「永遠不死」
+    try {
+        gameState.energy = Math.max(0, gameState.energy - 0.04);
+        moveAllPets();
+        
+        // 只有在畫布有實際長寬時才進行繪圖
+        if (canvas.width > 0 && canvas.height > 0) {
+            draw();
+        }
+        updateUI();
+    } catch (e) {
+        console.error("🚨 農場渲染發生異常，但已成功攔截：", e);
+    }
+    
+    // 把這行放在外面，保證無論如何都會繼續呼叫自己
     requestAnimationFrame(tick);
 }
 
@@ -1398,10 +1480,14 @@ function draw() {
         });
     });
 
-    let sortedPets = [...gameState.petsOwned].sort((a, b) => activePets[a].y - activePets[b].y);
+    // 🌟 終極防呆：只畫出真的存在於 activePets 裡的寵物
+    let validPets = [...gameState.petsOwned].filter(pid => activePets[pid]);
+    let sortedPets = validPets.sort((a, b) => activePets[a].y - activePets[b].y);
+    
     sortedPets.forEach(petId => {
         let p = activePets[petId];
-        let pSize = getPetSize(gameState.petStats[petId].lv);
+        let stat = gameState.petStats[petId] || { lv: 1 }; // 防呆
+        let pSize = getPetSize(stat.lv);
         let drawX = offsetX + p.x * TILE_SIZE;
         let drawY = offsetY + p.y * VERTICAL_STEP + OBJECT_Y_OFFSET;
         
@@ -1906,10 +1992,29 @@ function updateUI() {
 
 function switchTab(tabName) {
     if (window.innerWidth > 1024) return; 
-    const sidebar = document.getElementById('sidebar'); const farm = document.getElementById('farm-viewport');
-    const quizBtn = document.getElementById('nav-quiz-btn'); const farmBtn = document.getElementById('nav-farm-btn');
-    if (tabName === 'quiz') { if(sidebar) sidebar.classList.remove('mobile-hidden'); if(farm) farm.classList.add('mobile-hidden'); if(quizBtn) quizBtn.classList.add('active'); if(farmBtn) farmBtn.classList.remove('active'); } 
-    else if (tabName === 'farm') { if(sidebar) sidebar.classList.add('mobile-hidden'); if(farm) farm.classList.remove('mobile-hidden'); if(quizBtn) quizBtn.classList.remove('active'); if(farmBtn) farmBtn.classList.add('active'); setTimeout(resize, 50); }
+    const sidebar = document.getElementById('sidebar'); 
+    const farm = document.getElementById('farm-viewport');
+    const quizBtn = document.getElementById('nav-quiz-btn'); 
+    const farmBtn = document.getElementById('nav-farm-btn');
+    
+    if (tabName === 'quiz') { 
+        if(sidebar) sidebar.classList.remove('mobile-hidden'); 
+        if(farm) farm.classList.add('mobile-hidden'); 
+        if(quizBtn) quizBtn.classList.add('active'); 
+        if(farmBtn) farmBtn.classList.remove('active'); 
+    } 
+    else if (tabName === 'farm') { 
+        if(sidebar) sidebar.classList.add('mobile-hidden'); 
+        if(farm) farm.classList.remove('mobile-hidden'); 
+        if(quizBtn) quizBtn.classList.remove('active'); 
+        if(farmBtn) farmBtn.classList.add('active'); 
+        
+        // 🌟 雙重觸發機制：確保手機切換畫面時，一定能重新撐開畫布
+        requestAnimationFrame(() => {
+            resize();
+            setTimeout(resize, 100);
+        });
+    }
 }
 
 const DAILY_TASKS_CONFIG = [
