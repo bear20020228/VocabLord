@@ -218,24 +218,33 @@ function showToast(msg, type = 'info') {
 }
 
 function resize() {
-    const rect = canvas.parentElement.getBoundingClientRect();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const rect = parent.getBoundingClientRect();
+    
+    // 防呆1：避免 display: none 瞬間抓到 0 導致後續算式全部壞死
+    if (rect.width === 0 || rect.height === 0) return;
+
     canvas.width = rect.width; 
     canvas.height = rect.height;
 
-    const STEP_RATIO = 0.7; 
+    // 防呆2：把原本的 0.7 改成 0.6，必須跟 draw() 裡的 STEP_RATIO 保持一致
+    const STEP_RATIO = 0.6; 
 
-    // 🌟 防呆：確保 TILE_SIZE 絕對不會是 0 或負數，保底 10px
+    // 防呆3：確保 TILE_SIZE 絕對不會是 0 或負數，保底提高到 20
     let calculatedSize = Math.floor(Math.min(
         canvas.width / COLS, 
         (canvas.height - 160) / ((ROWS - 1) * STEP_RATIO + 1)
     ));
-    TILE_SIZE = Math.max(10, calculatedSize); 
+    TILE_SIZE = Math.max(20, calculatedSize); 
 
     const gridW = COLS * TILE_SIZE;
     const gridH = ((ROWS - 1) * (TILE_SIZE * STEP_RATIO)) + TILE_SIZE;
 
-    offsetX = Math.floor((canvas.width - gridW) / 2);
-    offsetY = Math.floor((canvas.height - gridH) / 2);
+    // 防呆4：強制置中防護，避免出現負數讓農場歪向左上角
+    offsetX = Math.max(0, Math.floor((canvas.width - gridW) / 2));
+    offsetY = Math.max(0, Math.floor((canvas.height - gridH) / 2));
 }
 window.addEventListener('resize', resize);
 
@@ -309,7 +318,6 @@ function resetGameState() {
 // 尋找 window.auth.onAuthStateChanged
 window.auth.onAuthStateChanged(async (user) => {
     if (user) {
-        // ✨ 這裡才是 user 真正存在的地方
         console.log("登入成功，正在載入用戶資料:", user.uid);
         
         // 1. 先重置狀態，避免殘留
@@ -327,9 +335,14 @@ window.auth.onAuthStateChanged(async (user) => {
             }
         }
 
+        // 🌟 修正：把讀取到的存檔名字寫回全域變數與大廳介面
+        currentUser = gameState.playerName || "勇者";
+        const hubNameEl = document.getElementById('hub-player-name');
+        if (hubNameEl) hubNameEl.innerText = currentUser;
+
         migrateGrid();
         updateUI();
-        loadQuestion(); // 確保進入後立刻加載正確題庫
+        loadQuestion(); 
     } else {
         // 沒人登入時清空資料
         resetGameState();
@@ -449,8 +462,12 @@ function enterRealm(realmId) {
     document.getElementById('world-map-screen').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
     
-    resize(); 
-    updateUI(); 
+    // 延遲計算，等畫面被 Flexbox 撐開後再抓尺寸
+    requestAnimationFrame(() => {
+        resize(); 
+        updateUI(); 
+        setTimeout(resize, 100); // 針對平板 Safari 排版延遲的雙重確認
+    });
     
     // 🌟 關鍵修改 1：先把農場動畫啟動！確保畫面不會因為題目當機而變白畫面
     requestAnimationFrame(tick); 
@@ -1566,39 +1583,58 @@ function autoHarvest() {
 
 // 🌟 修復版一鍵播種：直接使用當前裝備的種子種滿
 function autoPlant() {
-    let cost = SEED_DATA[gameState.currentSeed].cost; 
-    let emptyTiles = [];
-    
-    for(let y=0; y<ROWS; y++) { 
-        if (y % 2 === 0) continue; // 確保只種在有泥土的行數，避免錯位
-        for(let x=0; x<COLS; x++) { 
-            if(!gameState.farmTiles[y][x].plant) emptyTiles.push({x: x, y: y}); 
-        } 
-    }
-    
-    emptyTiles.sort(() => Math.random() - 0.5);
-    let count = 0;
-    
-    for(let i=0; i<emptyTiles.length; i++) {
-        if (gameState.coins >= cost) { 
-            gameState.coins -= cost; 
-            let t = gameState.farmTiles[emptyTiles[i].y][emptyTiles[i].x]; 
-            t.plant = true; 
-            t.type = gameState.currentSeed; 
-            t.progress = 0; 
-            count++; 
-        } else {
-            break; 
+    try {
+        // 防呆：確保目前有裝備合法的種子，沒有的話預設給胡蘿蔔
+        if (!gameState.currentSeed || !SEED_DATA[gameState.currentSeed]) {
+            gameState.currentSeed = 'carrot'; 
         }
-    }
-    
-    if(count > 0) { 
-        updateUI(); saveGame(); 
-        showToast(`🌱 成功一鍵播種了 ${count} 個 ${SEED_DATA[gameState.currentSeed].name}！`, "success"); 
-    } else if (gameState.coins < cost) { 
-        showToast(`💰 金幣不足！每個需要 ${cost} 金幣。`, "error"); 
-    } else {
-        showToast("🌱 農場客滿，沒有空地囉！", "info"); 
+
+        let cost = SEED_DATA[gameState.currentSeed].cost; 
+        let emptyTiles = [];
+        
+        for(let y=0; y<ROWS; y++) { 
+            if (y % 2 === 0) continue; // 確保只種在有泥土的行數，避免錯位
+            
+            // 防呆：確保該列陣列存在，防止因為畫面縮放改變 ROWS 導致越界
+            if (!gameState.farmTiles[y]) continue; 
+
+            for(let x=0; x<COLS; x++) { 
+                // 防呆：確保該格陣列存在，防止因為畫面縮放改變 COLS 導致越界
+                if (!gameState.farmTiles[y][x]) continue; 
+                
+                if(!gameState.farmTiles[y][x].plant) {
+                    emptyTiles.push({x: x, y: y}); 
+                }
+            } 
+        }
+        
+        emptyTiles.sort(() => Math.random() - 0.5);
+        let count = 0;
+        
+        for(let i=0; i<emptyTiles.length; i++) {
+            if (gameState.coins >= cost) { 
+                gameState.coins -= cost; 
+                let t = gameState.farmTiles[emptyTiles[i].y][emptyTiles[i].x]; 
+                t.plant = true; 
+                t.type = gameState.currentSeed; 
+                t.progress = 0; 
+                count++; 
+            } else {
+                break; 
+            }
+        }
+        
+        if(count > 0) { 
+            updateUI(); saveGame(); 
+            showToast(`🌱 成功一鍵播種了 ${count} 個 ${SEED_DATA[gameState.currentSeed].name}！`, "success"); 
+        } else if (gameState.coins < cost) { 
+            showToast(`💰 金幣不足！每個需要 ${cost} 金幣。`, "error"); 
+        } else {
+            showToast("🌱 農場客滿，沒有空地囉！", "info"); 
+        }
+    } catch (e) {
+        console.error("Auto plant error: ", e);
+        showToast("⚠️ 播種發生異常，請重整網頁", "error");
     }
 }
 
@@ -1761,10 +1797,16 @@ function renderPetPanel(panelBody) {
         let isOwned = gameState.petsOwned.includes(key); 
         let isCurrent = gameState.currentPet === key;
         
+        // 加入判斷：如果擁有該寵物且有自訂名稱，就顯示自訂名稱，否則顯示預設名稱
+        let displayName = (isOwned && gameState.petStats[key] && gameState.petStats[key].customName) 
+            ? gameState.petStats[key].customName 
+            : pData.title;
+        
         let petDiv = document.createElement('div'); 
         petDiv.className = 'shop-item'; 
         petDiv.style.background = isOwned ? (isCurrent ? '#e8f5e9' : 'transparent') : '#fdf2e9';
-        petDiv.innerHTML = `<span style="font-weight:bold;">${pData.title} <br><small>${isOwned ? 'Lv.' + gameState.petStats[key].lv : pData.desc}</small></span>`;
+        // 這裡的名稱改用 displayName
+        petDiv.innerHTML = `<span style="font-weight:bold;">${displayName} <br><small>${isOwned ? 'Lv.' + gameState.petStats[key].lv : pData.desc}</small></span>`;
         
         let btn = document.createElement('button'); 
         if (isOwned) {
@@ -2382,13 +2424,7 @@ window.updateUI = function() {
     if (typeof renderSeedSelectorBtn === 'function') renderSeedSelectorBtn();
 };
 
-window.auth.onAuthStateChanged(async (user) => {
-    if (user) {
-        await syncLoadFromCloud();
-        migrateGrid();
-        updateUI();
-    }
-});
+
 
 
 

@@ -2007,3 +2007,30 @@ body.is-pro #ui-overlays {
     font-size: 0.9em !important; 
     z-index: 100 !important; 
 }
+
+/* ...上面是你原本的程式碼... */
+
+/* 4. 專業版按鈕：移至右上角 */
+#pro-upgrade-btn { 
+    top: 15px !important; /* 改靠上 */
+    bottom: auto !important; 
+    left: auto !important; 
+    left: 15px !important; /* 改靠右 */
+    padding: 8px 12px !important; 
+    font-size: 0.9em !important; 
+    z-index: 100 !important; 
+}
+
+/* 👇 直接把新的程式碼接在最下面 👇 */
+/* 確保一鍵播種/收成區域絕對不被透明遮罩擋住 */
+#quick-actions {
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+}
+
+@media (max-width: 1024px), (orientation: portrait) {
+    #quick-actions {
+        /* 覆寫原本可能導致失效的 pointer-events: none */
+        pointer-events: auto !important; 
+    }
+}
