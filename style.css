@@ -711,6 +711,7 @@ body, html {
     display: block; 
     width: 100%; 
     height: 100%; 
+    margin: 0 auto; /* ✨ 新增這行 */
     image-rendering: pixelated; 
     touch-action: none; 
 }
@@ -1802,7 +1803,8 @@ body.kids-mode-active #energy-container {
 @media (max-width: 1024px), (orientation: portrait) {
     
     #game-container { 
-        width: 100vw; height: 100vh; height: 100dvh; 
+        width: 100%; /* 已修正：避免超出螢幕 */
+        height: 100%; 
         max-width: none; max-height: none; 
         border: none; border-radius: 0; 
         display: flex; flex-direction: column; 
@@ -1839,41 +1841,41 @@ body.kids-mode-active #energy-container {
     
     #farm-viewport { width: 100%; height: 100%; border-radius: 0; position: relative; }
     
-    
-    
     /* --- 🚀 核心改動：底部按鈕一列式排版 --- */
 
-    /* 1. 種子選擇鈕：維持 65px 圓形，移到最左邊 */
     #seed-selection-bar { 
         bottom: 15px !important; 
         left: 15px !important; 
         z-index: 101 !important;
+        width: 65px !important; 
+        height: 65px !important; 
+        pointer-events: none; /* 解決擋住按鈕的問題 */
     }
+    #seed-selection-bar * { pointer-events: auto; }
 
-    /* 2. 快捷按鈕容器：縮短並移到種子鈕右側 */
     #quick-actions { 
         bottom: 15px !important; 
-        left: 90px !important; /* 15px邊距 + 65px按鈕寬 + 10px間距 */
+        left: 90px !important; 
         right: 15px !important; 
         display: flex !important;
         flex-direction: row !important;
         gap: 8px !important;
         z-index: 100 !important;
+        pointer-events: none; 
     }
 
-    /* 3. 一鍵播種與收成按鈕：高度微調使其與圓圈協調 */
-.quick-btn { 
-    flex: 1 !important; 
-    height: 50px !important; 
-    font-size: 1em !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border-radius: 12px !important;
-    justify-content: center !important; /* ✨ 加入這行：強制文字與圖示置中 */
-    gap: 5px !important; /* ✨ 加入這行：縮小間距防止擠壓變形 */
-}
+    .quick-btn { 
+        flex: 1 !important; 
+        height: 50px !important; 
+        font-size: 1em !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+        justify-content: center !important; 
+        gap: 5px !important; 
+        pointer-events: auto; 
+    }
 
-    /* 4. 專業版按鈕：往上推開，避免擋到操作 */
     #pro-upgrade-btn { 
         top: auto !important; 
         bottom: 80px !important; 
@@ -1884,6 +1886,24 @@ body.kids-mode-active #energy-container {
     }
     
     #marquee-container { display: none !important; }
+
+    /* --- 第一與第二組整合：頂部按鈕 --- */
+    #ui-overlays { 
+        top: 15px !important; 
+        left: auto !important;   
+        right: 15px !important;  
+        width: auto !important;
+        display: flex !important;
+        justify-content: flex-end !important; 
+        gap: 8px !important;
+        transform: none !important;
+    }
+
+    .overlay-btn { 
+        padding: 8px 12px !important; 
+        font-size: 0.85em !important; 
+        flex: none !important; 
+    }
 }
 
 @media (max-width: 480px) {
@@ -1964,27 +1984,6 @@ body.kids-mode-active #energy-container {
 body.is-pro #ui-overlays { 
     right: 20px; 
     left: auto; /* 確保在專業版狀態下依然維持靠右 */
-}
-
-/* 3. 手機版、平板、電腦半畫面 (螢幕寬度 < 1024px) */
-@media (max-width: 1024px), (orientation: portrait) {
-    #ui-overlays { 
-        top: 15px !important; 
-        left: auto !important;   /* 👈 取消靠左 */
-        right: 15px !important;  /* 👈 改成靠右貼牆 */
-        width: auto !important;
-        display: flex !important;
-        justify-content: flex-end !important; /* 👈 確保裡面的按鈕往右邊對齊 */
-        gap: 8px !important;
-        transform: none !important;
-    }
-
-    /* 稍微縮小按鈕內容，防止在極窄畫面下擠成兩排 */
-    .overlay-btn { 
-        padding: 8px 12px !important; 
-        font-size: 0.85em !important; 
-        flex: none !important; 
-    }
 }
 
 /* 4. 極限小畫面 (寬度 < 480px) */
